@@ -43,6 +43,15 @@ const UserProfile = ({ profile }) => {
                 <p className="text-gray-400 text-sm mt-1">{profile.aboutMe || 'PlayStation Gamer'}</p>
 
                 <div className="flex space-x-4 mt-4">
+                    <div className="flex flex-col items-center border-r border-white/10 pr-4">
+                        <span className="text-xs text-gray-500 uppercase tracking-wider">Total</span>
+                        <span className="text-xl font-bold text-white">
+                            {(profile.trophySummary?.earnedTrophies?.platinum || 0) +
+                                (profile.trophySummary?.earnedTrophies?.gold || 0) +
+                                (profile.trophySummary?.earnedTrophies?.silver || 0) +
+                                (profile.trophySummary?.earnedTrophies?.bronze || 0)}
+                        </span>
+                    </div>
                     <div className="flex flex-col items-center">
                         <span className="text-xs text-gray-500 uppercase tracking-wider">Platinum</span>
                         <span className="text-xl font-bold text-blue-400">{profile.trophySummary?.earnedTrophies?.platinum || 0}</span>
