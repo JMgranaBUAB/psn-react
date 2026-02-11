@@ -1,17 +1,16 @@
 import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 import { Gamepad2, Loader2, AlertCircle } from 'lucide-react';
 import UserProfile from './components/UserProfile';
 import TrophyList from './components/TrophyList';
+import GameTrophies from './pages/GameTrophies';
 
-function App() {
+function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [titles, setTitles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Removed username dependency as requested
-  // const username = '...'; 
 
   useEffect(() => {
     const fetchData = async () => {
@@ -20,8 +19,6 @@ function App() {
         setError(null);
 
         // 1. Fetch MY Profile
-        // Note: In development, make sure your server.js is running on port 3001
-        // and you have a valid NPSSO in .env
         const profileRes = await axios.get(`http://localhost:3001/api/profile/me`);
         setProfile(profileRes.data);
 
@@ -93,7 +90,18 @@ function App() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/game/:npCommunicationId" element={<GameTrophies />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;

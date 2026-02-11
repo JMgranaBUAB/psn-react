@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { exchangeNpssoForCode, exchangeCodeForAccessToken, getUserTitles, makeUniversalSearch, getProfileFromAccountId, getUserTrophyProfileSummary } from 'psn-api';
+import { exchangeNpssoForCode, exchangeCodeForAccessToken, getUserTitles, makeUniversalSearch, getProfileFromAccountId, getUserTrophyProfileSummary, getUserTrophiesEarnedForTitle, getTitleTrophies } from 'psn-api';
 
 dotenv.config();
 
@@ -107,33 +107,65 @@ app.get('/api/trophies/me', async (req, res) => {
     }
 });
 
-/* 
-// Generic endpoint disabled to force use of /me
-app.get('/api/profile/:username', async (req, res) => {
-    // ... (logic removed to prevent conflicts)
-    res.status(404).json({ error: "Use /api/profile/me" });
-});
-*/
-
-app.get('/api/trophies/:accountId', async (req, res) => {
+app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
+    console.log(`Requesting trophies for title: ${req.params.npCommunicationId}`);
     if (!access_token) await authenticate();
-    if (!access_token) return res.status(500).json({ error: 'Failed to authenticate with PSN' });
+    if (!access_token) return res.status(500).json({ error: 'Failed to authenticate' });
+
+    const accountId = getAccountIdFromToken(access_token);
+    if (!accountId) return res.status(500).json({ error: 'No Account ID' });
 
     try {
-        const { accountId } = req.params;
-        // This is a placeholder call - we need to see specific trophy calls.
-        // psn-api documentations says: getUserTitles, getUserTrophiesEarnedForTitle, etc.
-        // We probably want recent titles first.
+        const { npCommunicationId } = req.params;
 
-        const titles = await getUserTitles(
-            { accessToken: access_token },
-            accountId,
-            { limit: 10 }
-        );
+        // Helper to fetch both and merge
+        const fetchAndMerge = async (serviceName) => {
+            console.log(`Trying service: ${serviceName}`);
+            const [staticTrophies, userTrophies] = await Promise.all([
+                getTitleTrophies(
+                    { accessToken: access_token },
+                    npCommunicationId,
+                    'all',
+                    { npServiceName: serviceName }
+                ),
+                getUserTrophiesEarnedForTitle(
+                    { accessToken: access_token },
+                    accountId,
+                    npCommunicationId,
+                    'all',
+                    { limit: 300, npServiceName: serviceName }
+                )
+            ]);
 
-        res.json(titles);
+            // Merge static data with earned status
+            return staticTrophies.trophies.map(t => {
+                const earned = userTrophies.trophies.find(u => u.trophyId === t.trophyId);
+                return {
+                    ...t,
+                    earned: earned ? earned.earned : false,
+                    earnedDateTime: earned ? earned.earnedDateTime : null,
+                    trophyEarnedRate: earned ? earned.trophyEarnedRate : null
+                };
+            });
+        };
+
+        let mergedTrophies;
+        try {
+            // PS5 games usually use 'trophy2'
+            mergedTrophies = await fetchAndMerge('trophy2');
+        } catch (e) {
+            console.log("Failed with 'trophy2', trying 'trophy' (PS4)...");
+            try {
+                mergedTrophies = await fetchAndMerge('trophy');
+            } catch (e2) {
+                console.error("Failed with both trophy and trophy2.");
+                throw e2;
+            }
+        }
+
+        res.json({ trophies: mergedTrophies });
     } catch (error) {
-        console.error(error);
+        console.error("Error fetching game trophies:", error);
         res.status(500).json({ error: error.message });
     }
 });
