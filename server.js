@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { exchangeNpssoForCode, exchangeCodeForAccessToken, getUserTitles, makeUniversalSearch, getProfileFromAccountId, getUserTrophyProfileSummary, getUserTrophiesEarnedForTitle, getTitleTrophies } from 'psn-api';
+import { exchangeNpssoForCode, exchangeCodeForAccessToken, getUserTitles, makeUniversalSearch, getProfileFromAccountId, getUserTrophyProfileSummary, getUserTrophiesEarnedForTitle, getTitleTrophies, getTitleTrophyGroups } from 'psn-api';
 
 dotenv.config();
 
@@ -123,6 +123,25 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
         const titleInfo = titlesResponse.trophyTitles.find(t => t.npCommunicationId === npCommunicationId);
         const titleName = titleInfo ? titleInfo.trophyTitleName : 'Game Trophies';
 
+        // Fetch trophy groups to get DLC names
+        let trophyGroups = {};
+        try {
+            const serviceName = titleInfo?.npServiceName || (titleInfo?.trophyTitlePlatform?.includes('PS5') ? 'trophy2' : 'trophy');
+            const groupsResponse = await getTitleTrophyGroups(
+                { accessToken: access_token },
+                npCommunicationId,
+                { npServiceName: serviceName }
+            );
+
+            // Map groupId to groupName
+            groupsResponse.trophyGroups.forEach(group => {
+                trophyGroups[group.trophyGroupId] = group.trophyGroupName;
+            });
+        } catch (err) {
+            console.error('Failed to fetch trophy groups:', err.message);
+            // Continue without group names
+        }
+
         // Helper to fetch both and merge
         const fetchAndMerge = async (serviceName) => {
             console.log(`Trying service: ${serviceName}`);
@@ -174,7 +193,8 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
 
         res.json({
             trophies: results.trophies,
-            titleName: results.titleName
+            titleName: results.titleName,
+            trophyGroups: trophyGroups
         });
     } catch (error) {
         console.error("Error fetching game trophies:", error);

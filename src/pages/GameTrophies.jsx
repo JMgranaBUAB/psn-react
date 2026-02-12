@@ -8,6 +8,7 @@ const GameTrophies = () => {
     const { npCommunicationId } = useParams();
     const [groupedTrophies, setGroupedTrophies] = useState({});
     const [titleName, setTitleName] = useState('');
+    const [trophyGroupNames, setTrophyGroupNames] = useState({});
     const [filter, setFilter] = useState('all'); // 'all', 'earned', 'unearned'
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -39,6 +40,7 @@ const GameTrophies = () => {
 
                 setGroupedTrophies(groups);
                 setTitleName(response.data.titleName || '');
+                setTrophyGroupNames(response.data.trophyGroups || {});
             } catch (err) {
                 console.error("Error fetching game trophies:", err);
                 setError("Failed to load trophies.");
@@ -117,7 +119,9 @@ const GameTrophies = () => {
 
                 <div className="space-y-8">
                     {Object.keys(groupedTrophies).map((groupId) => {
-                        const groupName = groupId === 'default' ? 'Base Game' : `DLC: ${groupId}`;
+                        const groupName = groupId === 'default'
+                            ? 'Base Game'
+                            : (trophyGroupNames[groupId] || `DLC: ${groupId}`);
                         let trophies = groupedTrophies[groupId];
 
                         // Apply filter
@@ -132,10 +136,40 @@ const GameTrophies = () => {
 
                         return (
                             <div key={groupId}>
-                                <h2 className="text-xl font-semibold mb-4 flex items-center text-purple-400">
+                                <h2 className="text-xl font-semibold mb-3 flex items-center text-purple-400">
                                     <span className="w-1 h-6 bg-purple-500 rounded-full mr-3"></span>
                                     {groupName}
                                 </h2>
+
+                                {/* Trophy Statistics */}
+                                <div className="mb-4 p-4 bg-white/5 rounded-lg border border-white/10">
+                                    <div className="grid grid-cols-4 gap-4 text-center">
+                                        {['platinum', 'gold', 'silver', 'bronze'].map(type => {
+                                            const total = trophies.filter(t => t.trophyType === type).length;
+                                            const earned = trophies.filter(t => t.trophyType === type && t.earned).length;
+                                            const pending = total - earned;
+
+                                            if (total === 0) return null;
+
+                                            return (
+                                                <div key={type} className="flex flex-col">
+                                                    <div className={`text-2xl font-bold ${type === 'platinum' ? 'text-blue-300' :
+                                                        type === 'gold' ? 'text-yellow-300' :
+                                                            type === 'silver' ? 'text-gray-300' :
+                                                                'text-orange-300'
+                                                        }`}>
+                                                        {earned}/{total}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500 uppercase mt-1">{type}</div>
+                                                    <div className="text-xs text-gray-400 mt-1">
+                                                        {pending > 0 ? `${pending} pendiente${pending > 1 ? 's' : ''}` : '✓ Completo'}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
                                 <div className="space-y-4">
                                     {trophies.map((trophy, index) => (
                                         <motion.div
