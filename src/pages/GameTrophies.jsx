@@ -10,37 +10,11 @@ const GameTrophies = () => {
     const [titleName, setTitleName] = useState('');
     const [platform, setPlatform] = useState('');
     const [trophyGroupNames, setTrophyGroupNames] = useState({});
-    const [translations, setTranslations] = useState({});
     const [filter, setFilter] = useState('all'); // 'all', 'earned', 'unearned'
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState(null);
 
-    // Translation function using MyMemory API
-    const translateText = async (text, trophyId) => {
-        // Skip if already translated or text is too short
-        if (translations[trophyId] || text.length < 10) return;
-
-        try {
-            const response = await axios.get(
-                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|es`
-            );
-
-            if (response.data.responseData.translatedText) {
-                const translated = response.data.responseData.translatedText;
-                // Only use translation if it's different from original
-                if (translated.toLowerCase() !== text.toLowerCase()) {
-                    setTranslations(prev => ({
-                        ...prev,
-                        [trophyId]: translated
-                    }));
-                }
-            }
-        } catch (err) {
-            // Silently fail - translation is optional
-            console.debug('Translation failed for:', trophyId);
-        }
-    };
 
     const fetchTrophies = async (isManualRefresh = false) => {
         try {
@@ -64,10 +38,10 @@ const GameTrophies = () => {
                 groups[groupId].push(trophy);
             });
 
-            // Sort each group by rarity
+            // Sort each group by rarity (highest to lowest)
             Object.keys(groups).forEach(groupId => {
                 groups[groupId].sort((a, b) => {
-                    return parseFloat(a.trophyEarnedRate || 0) - parseFloat(b.trophyEarnedRate || 0);
+                    return parseFloat(b.trophyEarnedRate || 0) - parseFloat(a.trophyEarnedRate || 0);
                 });
             });
 
@@ -75,15 +49,6 @@ const GameTrophies = () => {
             setTitleName(response.data.titleName || '');
             setPlatform(response.data.platform || '');
             setTrophyGroupNames(response.data.trophyGroups || {});
-
-            // Translate trophy descriptions (with small delay to avoid rate limiting)
-            if (isManualRefresh === false) {
-                Object.values(groups).flat().forEach((trophy, index) => {
-                    setTimeout(() => {
-                        translateText(trophy.trophyDetail, trophy.trophyId);
-                    }, index * 200);
-                });
-            }
         } catch (err) {
             console.error("Error fetching game trophies:", err);
             setError("Failed to load trophies.");
@@ -267,9 +232,9 @@ const GameTrophies = () => {
                                                     </span>
                                                 </div>
                                                 <p className="text-gray-400 text-sm mt-1">{trophy.trophyDetail}</p>
-                                                {translations[trophy.trophyId] && (
+                                                {trophy.trophyDetailEs && (
                                                     <p className="text-blue-300 text-sm mt-1 italic">
-                                                        {translations[trophy.trophyId]}
+                                                        {trophy.trophyDetailEs}
                                                     </p>
                                                 )}
                                                 <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { exchangeNpssoForCode, exchangeCodeForAccessToken, getUserTitles, makeUniversalSearch, getProfileFromAccountId, getUserTrophyProfileSummary, getUserTrophiesEarnedForTitle, getTitleTrophies, getTitleTrophyGroups } from 'psn-api';
+import translate from 'translate-google-api';
 
 dotenv.config();
 
@@ -11,8 +12,11 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-// PSN Auth Token storage (in-memory for demo, simple file or DB for production)
+// PSN Auth Token storage
 let access_token = null;
+
+// Simple in-memory cache for translations to avoid redundant API calls
+const translationCache = new Map();
 
 const authenticate = async () => {
     const npsso = process.env.NPSSO;
@@ -171,9 +175,39 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
                     trophyEarnedRate: earned ? earned.trophyEarnedRate : null
                 };
             });
+
+            // Translate descriptions to Spanish
+            console.log("Translating trophies to Spanish...");
+            const trophiesToTranslate = mergedTrophies.filter(t => !translationCache.has(t.trophyId) && t.trophyDetail);
+
+            if (trophiesToTranslate.length > 0) {
+                try {
+                    const descriptions = trophiesToTranslate.map(t => t.trophyDetail);
+                    // Translate as a batch
+                    const translations = await translate(descriptions, {
+                        from: 'en',
+                        to: 'es'
+                    });
+
+                    trophiesToTranslate.forEach((t, i) => {
+                        if (translations[i]) {
+                            translationCache.set(t.trophyId, translations[i]);
+                        }
+                    });
+                } catch (err) {
+                    console.error("Translation error:", err.message);
+                }
+            }
+
+            // Add cached translations to result
+            const finalTrophies = mergedTrophies.map(t => ({
+                ...t,
+                trophyDetailEs: translationCache.get(t.trophyId) || null
+            }));
+
             return {
-                trophies: mergedTrophies,
-                titleName: titleName // Use the one we found at the top
+                trophies: finalTrophies,
+                titleName: titleName
             };
         };
 
