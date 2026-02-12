@@ -96,13 +96,6 @@ const GameTrophies = () => {
     useEffect(() => {
         if (npCommunicationId) {
             fetchTrophies();
-
-            // Auto-refresh every 60 seconds
-            const intervalId = setInterval(() => {
-                fetchTrophies(true);
-            }, 60000);
-
-            return () => clearInterval(intervalId);
         }
     }, [npCommunicationId]);
 
@@ -138,29 +131,19 @@ const GameTrophies = () => {
                         <Trophy className="text-yellow-500 mr-3" size={32} />
                         {titleName || 'Game Trophies'}
                     </h1>
-                    <div className="flex items-center gap-3">
-                        {platform && (
-                            <span className={`px-3 py-1 rounded text-sm font-semibold ${platform.includes('PS5') ? 'bg-blue-600' :
-                                platform.includes('PS4') ? 'bg-blue-500' :
-                                    platform.includes('VITA') ? 'bg-purple-500' :
-                                        platform.includes('PS3') ? 'bg-gray-600' :
-                                            'bg-gray-500'
-                                }`}>
-                                {platform.includes('PS5') ? 'PS5' :
-                                    platform.includes('PS4') ? 'PS4' :
-                                        platform.includes('VITA') ? 'Vita' :
-                                            platform.includes('PS3') ? 'PS3' : 'PSN'}
-                            </span>
-                        )}
-                        <button
-                            onClick={() => fetchTrophies(true)}
-                            disabled={isRefreshing}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
-                            title="Actualizar trofeos"
-                        >
-                            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-                        </button>
-                    </div>
+                    {platform && (
+                        <span className={`px-3 py-1 rounded text-sm font-semibold ${platform.includes('PS5') ? 'bg-blue-600' :
+                            platform.includes('PS4') ? 'bg-blue-500' :
+                                platform.includes('VITA') ? 'bg-purple-500' :
+                                    platform.includes('PS3') ? 'bg-gray-600' :
+                                        'bg-gray-500'
+                            }`}>
+                            {platform.includes('PS5') ? 'PS5' :
+                                platform.includes('PS4') ? 'PS4' :
+                                    platform.includes('VITA') ? 'Vita' :
+                                        platform.includes('PS3') ? 'PS3' : 'PSN'}
+                        </span>
+                    )}
                 </div>
 
                 {/* Filter Controls */}
@@ -305,6 +288,16 @@ const GameTrophies = () => {
                         );
                     })}
                 </div>
+
+                {/* Floating Refresh Button */}
+                <button
+                    onClick={() => fetchTrophies(true)}
+                    disabled={isRefreshing}
+                    className="fixed bottom-8 right-8 p-4 bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-110 z-50"
+                    title="Actualizar trofeos"
+                >
+                    <RefreshCw size={24} className={`text-white ${isRefreshing ? 'animate-spin' : ''}`} />
+                </button>
             </div>
         </div>
     );
