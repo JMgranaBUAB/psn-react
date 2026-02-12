@@ -45,7 +45,7 @@ function Dashboard() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px]" />
       </div>
 
-      <div className="relative z-10 container mx-auto px-4 py-8">
+      <div className="relative z-10 mx-auto px-6 py-8 max-w-6xl w-full">
         <header className="flex items-center justify-between mb-12">
           <div className="flex items-center space-x-2">
             <Gamepad2 className="text-purple-500" size={32} />
@@ -83,7 +83,9 @@ function Dashboard() {
                   <span className="w-1 h-6 bg-purple-500 rounded-full mr-3"></span>
                   Recent Games
                 </h3>
-                <TrophyList titles={titles} />
+                <div className="max-w-5xl mx-auto">
+                  <TrophyList titles={titles} />
+                </div>
               </div>
             </>
           )}

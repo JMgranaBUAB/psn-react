@@ -3,65 +3,79 @@ import { motion } from 'framer-motion';
 import { Trophy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const TrophyCard = ({ title, index }) => {
-    // Determine gradient based on generic status or type if available
-    // For now using a generic cool gradient
+const TrophyCard = ({ title }) => {
+    // Check if platinum trophy is earned
+    const hasPlatinum = title.earnedTrophies?.platinum > 0;
+
+    // Platform badge styling
+    const getPlatformInfo = (platform) => {
+        if (platform?.includes('PS5')) return { text: 'PS5', color: 'bg-blue-600' };
+        if (platform?.includes('PS4')) return { text: 'PS4', color: 'bg-blue-500' };
+        if (platform?.includes('VITA')) return { text: 'Vita', color: 'bg-purple-500' };
+        if (platform?.includes('PS3')) return { text: 'PS3', color: 'bg-gray-600' };
+        return { text: 'PSN', color: 'bg-gray-500' };
+    };
+
+    const platformInfo = getPlatformInfo(title.trophyTitlePlatform);
 
     return (
         <Link to={`/game/${title.npCommunicationId}`}>
             <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -5, transition: { duration: 0.2 } }}
-                className="bg-gradient-to-br from-gray-800/50 to-gray-900/80 backdrop-blur-md border border-white/5 rounded-xl overflow-hidden shadow-lg group hover:shadow-purple-500/20 hover:border-purple-500/30 transition-all duration-300 h-full flex flex-col cursor-pointer"
+                whileHover={{ scale: 1.03, y: -5 }}
+                transition={{ duration: 0.2 }}
+                className={`bg-white/5 backdrop-blur-sm rounded-xl overflow-hidden cursor-pointer 
+                    shadow-lg hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300
+                    ${hasPlatinum ? 'ring-2 ring-blue-400 shadow-blue-400/30' : 'border border-white/10'}`}
             >
-                <div className="aspect-video relative overflow-hidden">
+                {/* Game Image */}
+                <div className="relative h-40 overflow-hidden">
                     <img
-                        src={title.trophyTitleIconUrl || 'https://via.placeholder.com/300x169'}
+                        src={title.trophyTitleIconUrl}
                         alt={title.trophyTitleName}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 to-transparent opacity-80" />
-
-                    <div className="absolute bottom-3 left-3 right-3">
-                        <h3 className="text-white font-semibold text-lg truncate drop-shadow-md">{title.trophyTitleName}</h3>
-                        <p className="text-gray-300 text-xs">{title.platform}</p>
+                    {/* Platform Badge */}
+                    <div className={`absolute top-2 right-2 ${platformInfo.color} text-white text-xs font-bold px-2 py-1 rounded`}>
+                        {platformInfo.text}
                     </div>
+                    {/* Platinum Badge */}
+                    {hasPlatinum && (
+                        <div className="absolute top-2 left-2 bg-blue-500 text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+                            <Trophy size={12} />
+                            Platino
+                        </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#0f0f15] to-transparent"></div>
                 </div>
 
-                <div className="p-4 flex items-center justify-between mt-auto">
-                    <div className="flex space-x-2">
-                        <div className="flex items-center space-x-1 text-blue-400" title="Platinum">
-                            <Trophy size={14} />
-                            <span className="text-xs font-mono">{title.earnedTrophies?.platinum || 0}</span>
-                        </div>
-                        <div className="flex items-center space-x-1 text-yellow-400" title="Gold">
-                            <Trophy size={14} />
-                            <span className="text-xs font-mono">{title.earnedTrophies?.gold || 0}</span>
-                        </div>
-                        <div className="flex items-center space-x-1 text-gray-300" title="Silver">
-                            <Trophy size={14} />
-                            <span className="text-xs font-mono">{title.earnedTrophies?.silver || 0}</span>
-                        </div>
-                        <div className="flex items-center space-x-1 text-orange-400" title="Bronze">
-                            <Trophy size={14} />
-                            <span className="text-xs font-mono">{title.earnedTrophies?.bronze || 0}</span>
+                {/* Game Info */}
+                <div className="p-4">
+                    <h3 className="font-bold text-lg mb-2 line-clamp-1">{title.trophyTitleName}</h3>
+
+                    {/* Trophy Counts */}
+                    <div className="flex justify-between items-center text-sm mb-3">
+                        <div className="flex gap-2">
+                            {title.definedTrophies.platinum > 0 && (
+                                <span className="text-blue-300 flex items-center gap-1">
+                                    <Trophy size={14} /> {title.earnedTrophies.platinum}/{title.definedTrophies.platinum}
+                                </span>
+                            )}
+                            <span className="text-yellow-300">{title.earnedTrophies.gold}/{title.definedTrophies.gold}</span>
+                            <span className="text-gray-300">{title.earnedTrophies.silver}/{title.definedTrophies.silver}</span>
+                            <span className="text-orange-300">{title.earnedTrophies.bronze}/{title.definedTrophies.bronze}</span>
                         </div>
                     </div>
 
-                    <div className="text-right">
-                        <div className="text-xs text-gray-500 uppercase">Progress</div>
-                        <div className="text-sm font-bold text-white">{title.progress}%</div>
+                    {/* Progress Bar */}
+                    <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                        <div
+                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${title.progress}%` }}
+                        ></div>
                     </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="h-1 w-full bg-gray-800">
-                    <div
-                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-                        style={{ width: `${title.progress}%` }}
-                    />
+                    <p className="text-xs text-gray-400 mt-1 text-right">{title.progress}% completado</p>
                 </div>
             </motion.div>
         </Link>

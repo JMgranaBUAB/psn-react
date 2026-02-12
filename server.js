@@ -97,7 +97,7 @@ app.get('/api/trophies/me', async (req, res) => {
         const titles = await getUserTitles(
             { accessToken: access_token },
             accountId,
-            { limit: 12 }
+            { limit: 24 }
         );
 
         res.json(titles);
@@ -194,6 +194,7 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
         res.json({
             trophies: results.trophies,
             titleName: results.titleName,
+            platform: titleInfo?.trophyTitlePlatform || '',
             trophyGroups: trophyGroups
         });
     } catch (error) {

@@ -2,55 +2,107 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Trophy, Lock, Unlock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Trophy, Lock, Unlock, Loader2, RefreshCw } from 'lucide-react';
 
 const GameTrophies = () => {
     const { npCommunicationId } = useParams();
     const [groupedTrophies, setGroupedTrophies] = useState({});
     const [titleName, setTitleName] = useState('');
+    const [platform, setPlatform] = useState('');
     const [trophyGroupNames, setTrophyGroupNames] = useState({});
+    const [translations, setTranslations] = useState({});
     const [filter, setFilter] = useState('all'); // 'all', 'earned', 'unearned'
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState(null);
 
-    useEffect(() => {
-        const fetchTrophies = async () => {
-            try {
-                setLoading(true);
-                const response = await axios.get(`http://localhost:3001/api/titles/${npCommunicationId}/trophies`);
+    // Translation function using MyMemory API
+    const translateText = async (text, trophyId) => {
+        // Skip if already translated or text is too short
+        if (translations[trophyId] || text.length < 10) return;
 
-                const fetchedTrophies = response.data.trophies || [];
+        try {
+            const response = await axios.get(
+                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|es`
+            );
 
-                // Group by trophyGroupId
-                const groups = {};
-                fetchedTrophies.forEach(trophy => {
-                    const groupId = trophy.trophyGroupId || 'default';
-                    if (!groups[groupId]) {
-                        groups[groupId] = [];
-                    }
-                    groups[groupId].push(trophy);
-                });
-
-                // Sort each group by rarity
-                Object.keys(groups).forEach(groupId => {
-                    groups[groupId].sort((a, b) => {
-                        return parseFloat(a.trophyEarnedRate || 0) - parseFloat(b.trophyEarnedRate || 0);
-                    });
-                });
-
-                setGroupedTrophies(groups);
-                setTitleName(response.data.titleName || '');
-                setTrophyGroupNames(response.data.trophyGroups || {});
-            } catch (err) {
-                console.error("Error fetching game trophies:", err);
-                setError("Failed to load trophies.");
-            } finally {
-                setLoading(false);
+            if (response.data.responseData.translatedText) {
+                const translated = response.data.responseData.translatedText;
+                // Only use translation if it's different from original
+                if (translated.toLowerCase() !== text.toLowerCase()) {
+                    setTranslations(prev => ({
+                        ...prev,
+                        [trophyId]: translated
+                    }));
+                }
             }
-        };
+        } catch (err) {
+            // Silently fail - translation is optional
+            console.debug('Translation failed for:', trophyId);
+        }
+    };
 
+    const fetchTrophies = async (isManualRefresh = false) => {
+        try {
+            if (isManualRefresh) {
+                setIsRefreshing(true);
+            } else {
+                setLoading(true);
+            }
+
+            const response = await axios.get(`http://localhost:3001/api/titles/${npCommunicationId}/trophies`);
+
+            const fetchedTrophies = response.data.trophies || [];
+
+            // Group by trophyGroupId
+            const groups = {};
+            fetchedTrophies.forEach(trophy => {
+                const groupId = trophy.trophyGroupId || 'default';
+                if (!groups[groupId]) {
+                    groups[groupId] = [];
+                }
+                groups[groupId].push(trophy);
+            });
+
+            // Sort each group by rarity
+            Object.keys(groups).forEach(groupId => {
+                groups[groupId].sort((a, b) => {
+                    return parseFloat(a.trophyEarnedRate || 0) - parseFloat(b.trophyEarnedRate || 0);
+                });
+            });
+
+            setGroupedTrophies(groups);
+            setTitleName(response.data.titleName || '');
+            setPlatform(response.data.platform || '');
+            setTrophyGroupNames(response.data.trophyGroups || {});
+
+            // Translate trophy descriptions (with small delay to avoid rate limiting)
+            if (isManualRefresh === false) {
+                Object.values(groups).flat().forEach((trophy, index) => {
+                    setTimeout(() => {
+                        translateText(trophy.trophyDetail, trophy.trophyId);
+                    }, index * 200);
+                });
+            }
+        } catch (err) {
+            console.error("Error fetching game trophies:", err);
+            setError("Failed to load trophies.");
+        } finally {
+            setLoading(false);
+            setIsRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
         if (npCommunicationId) {
             fetchTrophies();
+
+            // Auto-refresh every 60 seconds
+            const intervalId = setInterval(() => {
+                fetchTrophies(true);
+            }, 60000);
+
+            return () => clearInterval(intervalId);
         }
     }, [npCommunicationId]);
 
@@ -75,16 +127,41 @@ const GameTrophies = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#0f0f15] text-white font-sans p-8">
-            <div className="max-w-4xl mx-auto">
+        <div className="min-h-screen bg-[#0f0f15] text-white font-sans px-6 py-8">
+            <div className="max-w-5xl mx-auto w-full">
                 <Link to="/" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
                     <ArrowLeft size={20} className="mr-2" /> Back to Dashboard
                 </Link>
 
-                <h1 className="text-3xl font-bold mb-4 flex items-center">
-                    <Trophy className="text-yellow-500 mr-3" size={32} />
-                    {titleName || 'Game Trophies'}
-                </h1>
+                <div className="flex items-center justify-between mb-4">
+                    <h1 className="text-3xl font-bold flex items-center">
+                        <Trophy className="text-yellow-500 mr-3" size={32} />
+                        {titleName || 'Game Trophies'}
+                    </h1>
+                    <div className="flex items-center gap-3">
+                        {platform && (
+                            <span className={`px-3 py-1 rounded text-sm font-semibold ${platform.includes('PS5') ? 'bg-blue-600' :
+                                platform.includes('PS4') ? 'bg-blue-500' :
+                                    platform.includes('VITA') ? 'bg-purple-500' :
+                                        platform.includes('PS3') ? 'bg-gray-600' :
+                                            'bg-gray-500'
+                                }`}>
+                                {platform.includes('PS5') ? 'PS5' :
+                                    platform.includes('PS4') ? 'PS4' :
+                                        platform.includes('VITA') ? 'Vita' :
+                                            platform.includes('PS3') ? 'PS3' : 'PSN'}
+                            </span>
+                        )}
+                        <button
+                            onClick={() => fetchTrophies(true)}
+                            disabled={isRefreshing}
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50"
+                            title="Actualizar trofeos"
+                        >
+                            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
+                        </button>
+                    </div>
+                </div>
 
                 {/* Filter Controls */}
                 <div className="flex gap-3 mb-8">
@@ -207,6 +284,11 @@ const GameTrophies = () => {
                                                     </span>
                                                 </div>
                                                 <p className="text-gray-400 text-sm mt-1">{trophy.trophyDetail}</p>
+                                                {translations[trophy.trophyId] && (
+                                                    <p className="text-blue-300 text-sm mt-1 italic">
+                                                        {translations[trophy.trophyId]}
+                                                    </p>
+                                                )}
                                                 <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">
                                                     <span>Rarity: {trophy.trophyEarnedRate}%</span>
                                                     {trophy.earned && (
