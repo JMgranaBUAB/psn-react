@@ -7,6 +7,7 @@ import { ArrowLeft, Trophy, Lock, Unlock, Loader2 } from 'lucide-react';
 const GameTrophies = () => {
     const { npCommunicationId } = useParams();
     const [trophies, setTrophies] = useState([]);
+    const [titleName, setTitleName] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -15,7 +16,15 @@ const GameTrophies = () => {
             try {
                 setLoading(true);
                 const response = await axios.get(`http://localhost:3001/api/titles/${npCommunicationId}/trophies`);
-                setTrophies(response.data.trophies || []);
+
+                const fetchedTrophies = response.data.trophies || [];
+                // Sort by rarity (lowest rate = rarest)
+                const sortedTrophies = [...fetchedTrophies].sort((a, b) => {
+                    return parseFloat(a.trophyEarnedRate || 0) - parseFloat(b.trophyEarnedRate || 0);
+                });
+
+                setTrophies(sortedTrophies);
+                setTitleName(response.data.titleName || '');
             } catch (err) {
                 console.error("Error fetching game trophies:", err);
                 setError("Failed to load trophies.");
@@ -58,7 +67,7 @@ const GameTrophies = () => {
 
                 <h1 className="text-3xl font-bold mb-8 flex items-center">
                     <Trophy className="text-yellow-500 mr-3" size={32} />
-                    Game Trophies
+                    {titleName || 'Game Trophies'}
                 </h1>
 
                 <div className="space-y-4">

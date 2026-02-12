@@ -63,8 +63,9 @@ const debugTrophies = async () => {
             { npServiceName: serviceName }
         );
 
-        console.log(`User Trophies: ${userTrophies.trophies.length}`);
-        console.log(`Title Trophies: ${titleTrophies.trophies.length}`);
+        console.log('Title Trophies Keys:', Object.keys(titleTrophies));
+        if (titleTrophies.trophyTitleName) console.log('Found Name:', titleTrophies.trophyTitleName);
+        else console.log('Name NOT found in staticTrophies');
 
         // Merge logic test
         const merged = titleTrophies.trophies.map(t => {

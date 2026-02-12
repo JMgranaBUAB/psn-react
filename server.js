@@ -118,6 +118,11 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
     try {
         const { npCommunicationId } = req.params;
 
+        // Fetch title name separately because getTitleTrophies doesn't return it
+        const titlesResponse = await getUserTitles({ accessToken: access_token }, accountId);
+        const titleInfo = titlesResponse.trophyTitles.find(t => t.npCommunicationId === npCommunicationId);
+        const titleName = titleInfo ? titleInfo.trophyTitleName : 'Game Trophies';
+
         // Helper to fetch both and merge
         const fetchAndMerge = async (serviceName) => {
             console.log(`Trying service: ${serviceName}`);
@@ -138,7 +143,7 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
             ]);
 
             // Merge static data with earned status
-            return staticTrophies.trophies.map(t => {
+            const mergedTrophies = staticTrophies.trophies.map(t => {
                 const earned = userTrophies.trophies.find(u => u.trophyId === t.trophyId);
                 return {
                     ...t,
@@ -147,23 +152,30 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
                     trophyEarnedRate: earned ? earned.trophyEarnedRate : null
                 };
             });
+            return {
+                trophies: mergedTrophies,
+                titleName: titleName // Use the one we found at the top
+            };
         };
 
-        let mergedTrophies;
+        let results;
         try {
             // PS5 games usually use 'trophy2'
-            mergedTrophies = await fetchAndMerge('trophy2');
+            results = await fetchAndMerge('trophy2');
         } catch (e) {
             console.log("Failed with 'trophy2', trying 'trophy' (PS4)...");
             try {
-                mergedTrophies = await fetchAndMerge('trophy');
+                results = await fetchAndMerge('trophy');
             } catch (e2) {
                 console.error("Failed with both trophy and trophy2.");
                 throw e2;
             }
         }
 
-        res.json({ trophies: mergedTrophies });
+        res.json({
+            trophies: results.trophies,
+            titleName: results.titleName
+        });
     } catch (error) {
         console.error("Error fetching game trophies:", error);
         res.status(500).json({ error: error.message });
