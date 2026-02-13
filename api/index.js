@@ -18,24 +18,34 @@ let current_npsso = process.env.NPSSO || null;
 // Simple in-memory cache for translations
 const translationCache = new Map();
 
-const authenticate = async () => {
-    const npsso = current_npsso;
+// Middleware to extract NPSSO from Authorization header
+app.use(async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        req.npsso = authHeader.split(' ')[1];
+    } else {
+        req.npsso = process.env.NPSSO || null;
+    }
+    next();
+});
+
+const authenticate = async (npsso) => {
     if (!npsso || npsso.length !== 64) return null;
 
     try {
+        console.log("Authenticating with NPSSO...");
         const accessCode = await exchangeNpssoForCode(npsso);
         const authorization = await exchangeCodeForAccessToken(accessCode);
-        access_token = authorization.accessToken;
-        return access_token;
+        return authorization.accessToken;
     } catch (error) {
         console.error('PSN Auth Error:', error.message);
-        access_token = null;
         return null;
     }
 };
 
-app.get('/api/auth/status', (req, res) => {
-    res.json({ authenticated: !!access_token, hasNpsso: !!current_npsso });
+app.get('/api/auth/status', async (req, res) => {
+    const token = await authenticate(req.npsso);
+    res.json({ authenticated: !!token, hasNpsso: !!req.npsso });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -43,12 +53,11 @@ app.post('/api/auth/login', async (req, res) => {
     if (!npsso || npsso.length !== 64) {
         return res.status(400).json({ error: 'El código NPSSO debe tener exactamente 64 caracteres.' });
     }
-    current_npsso = npsso;
-    const token = await authenticate();
+    const token = await authenticate(npsso);
     if (token) {
         res.json({ success: true });
     } else {
-        res.status(401).json({ error: 'No se pudo conectar con PlayStation.' });
+        res.status(401).json({ error: 'No se pudo conectar con PlayStation. Verifica que el código sea correcto y reciente.' });
     }
 });
 
@@ -71,15 +80,16 @@ const getAccountIdFromToken = (token) => {
 };
 
 app.get('/api/profile/me', async (req, res) => {
-    if (!access_token) await authenticate();
-    if (!access_token) return res.status(500).json({ error: 'Auth failed' });
-    const accountId = getAccountIdFromToken(access_token);
+    const accessToken = await authenticate(req.npsso);
+    if (!accessToken) return res.status(401).json({ error: 'Authentication failed' });
+
+    const accountId = getAccountIdFromToken(accessToken);
     if (!accountId) return res.status(500).json({ error: 'No account ID' });
 
     try {
         const [profile, trophySummary] = await Promise.all([
-            getProfileFromAccountId({ accessToken: access_token }, accountId),
-            getUserTrophyProfileSummary({ accessToken: access_token }, accountId)
+            getProfileFromAccountId({ accessToken }, accountId),
+            getUserTrophyProfileSummary({ accessToken }, accountId)
         ]);
         res.json({ ...profile, trophySummary });
     } catch (error) {
@@ -88,13 +98,14 @@ app.get('/api/profile/me', async (req, res) => {
 });
 
 app.get('/api/trophies/me', async (req, res) => {
-    if (!access_token) await authenticate();
-    if (!access_token) return res.status(500).json({ error: 'Auth failed' });
-    const accountId = getAccountIdFromToken(access_token);
+    const accessToken = await authenticate(req.npsso);
+    if (!accessToken) return res.status(401).json({ error: 'Authentication failed' });
+
+    const accountId = getAccountIdFromToken(accessToken);
     if (!accountId) return res.status(500).json({ error: 'No account ID' });
 
     try {
-        const titles = await getUserTitles({ accessToken: access_token }, accountId, { limit: 24 });
+        const titles = await getUserTitles({ accessToken }, accountId, { limit: 24 });
         res.json(titles);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -102,28 +113,29 @@ app.get('/api/trophies/me', async (req, res) => {
 });
 
 app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
-    if (!access_token) await authenticate();
-    if (!access_token) return res.status(500).json({ error: 'Auth failed' });
-    const accountId = getAccountIdFromToken(access_token);
+    const accessToken = await authenticate(req.npsso);
+    if (!accessToken) return res.status(401).json({ error: 'Authentication failed' });
+
+    const accountId = getAccountIdFromToken(accessToken);
     if (!accountId) return res.status(500).json({ error: 'No account ID' });
 
     try {
         const { npCommunicationId } = req.params;
-        const titlesResponse = await getUserTitles({ accessToken: access_token }, accountId);
+        const titlesResponse = await getUserTitles({ accessToken }, accountId);
         const titleInfo = titlesResponse.trophyTitles.find(t => t.npCommunicationId === npCommunicationId);
         const titleName = titleInfo ? titleInfo.trophyTitleName : 'Game Trophies';
 
         let trophyGroups = {};
         try {
             const serviceName = titleInfo?.npServiceName || (titleInfo?.trophyTitlePlatform?.includes('PS5') ? 'trophy2' : 'trophy');
-            const groupsResponse = await getTitleTrophyGroups({ accessToken: access_token }, npCommunicationId, { npServiceName: serviceName });
+            const groupsResponse = await getTitleTrophyGroups({ accessToken }, npCommunicationId, { npServiceName: serviceName });
             groupsResponse.trophyGroups.forEach(g => trophyGroups[g.trophyGroupId] = g.trophyGroupName);
         } catch (err) { }
 
         const serviceName = titleInfo?.npServiceName || (titleInfo?.trophyTitlePlatform?.includes('PS5') ? 'trophy2' : 'trophy');
         const [staticTrophies, userTrophies] = await Promise.all([
-            getTitleTrophies({ accessToken: access_token }, npCommunicationId, 'all', { npServiceName: serviceName }),
-            getUserTrophiesEarnedForTitle({ accessToken: access_token }, accountId, npCommunicationId, 'all', { limit: 300, npServiceName: serviceName })
+            getTitleTrophies({ accessToken }, npCommunicationId, 'all', { npServiceName: serviceName }),
+            getUserTrophiesEarnedForTitle({ accessToken }, accountId, npCommunicationId, 'all', { limit: 300, npServiceName: serviceName })
         ]);
 
         const mergedTrophies = staticTrophies.trophies.map(t => {

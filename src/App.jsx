@@ -37,17 +37,22 @@ function Dashboard() {
           ? `http://${window.location.hostname}:3001`
           : '';
 
+        const npsso = localStorage.getItem('psn_npsso');
+        const config = {
+          headers: npsso ? { 'Authorization': `Bearer ${npsso}` } : {}
+        };
+
         // 1. Fetch MY Profile
-        const profileRes = await axios.get(`${API_URL}/api/profile/me`);
+        const profileRes = await axios.get(`${API_URL}/api/profile/me`, config);
         setProfile(profileRes.data);
 
         // 2. Fetch MY Trophies (Titles)
-        const trophiesRes = await axios.get(`${API_URL}/api/trophies/me`);
+        const trophiesRes = await axios.get(`${API_URL}/api/trophies/me`, config);
         setTitles(trophiesRes.data?.trophyTitles || []);
 
       } catch (err) {
         console.error("Error fetching PSN data:", err);
-        setError("Failed to load data. Please check if the backend is running and the NPSSO token is valid in .env");
+        setError(err.response?.data?.error || "Error al cargar los datos. Verifica tu conexión.");
       } finally {
         setLoading(false);
       }
@@ -132,9 +137,12 @@ function App() {
       try {
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
           ? `http://${window.location.hostname}:3001`
-          : ''; // In production (Vercel), requests go to /api on the same origin
+          : '';
 
-        const { data } = await axios.get(`${API_URL}/api/auth/status`);
+        const npsso = localStorage.getItem('psn_npsso');
+        const { data } = await axios.get(`${API_URL}/api/auth/status`, {
+          headers: npsso ? { 'Authorization': `Bearer ${npsso}` } : {}
+        });
 
         if (data.authenticated) {
           setIsAuth(true);
@@ -143,7 +151,10 @@ function App() {
           const savedNpsso = localStorage.getItem('psn_npsso');
           if (savedNpsso) {
             try {
-              const loginRes = await axios.post(`${API_URL}/api/auth/login`, { npsso: savedNpsso });
+              const loginRes = await axios.post(`${API_URL}/api/auth/login`,
+                { npsso: savedNpsso },
+                { headers: { 'Authorization': `Bearer ${savedNpsso}` } }
+              );
               if (loginRes.data.success) {
                 setIsAuth(true);
                 return;
