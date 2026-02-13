@@ -56,32 +56,6 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get('/api/auth/status', async (req, res) => {
-    console.log("[API] GET /auth/status");
-    const token = await authenticate(req.npsso);
-    res.json({ authenticated: !!token, hasNpsso: !!req.npsso });
-});
-
-app.post('/api/auth/login', async (req, res) => {
-    const { npsso } = req.body;
-    console.log(`[API] POST /auth/login (Length: ${npsso?.length})`);
-    if (!npsso || npsso.length !== 64) {
-        return res.status(400).json({ error: 'El código NPSSO debe tener exactamente 64 caracteres.' });
-    }
-    const token = await authenticate(npsso);
-    if (token) {
-        res.json({ success: true });
-    } else {
-        res.status(401).json({ error: 'No se pudo conectar con PlayStation. Verifica que el código sea correcto y reciente.' });
-    }
-});
-
-app.post('/api/auth/logout', (req, res) => {
-    console.log("[API] POST /auth/logout");
-    if (req.npsso) tokenCache.delete(req.npsso);
-    res.json({ success: true });
-});
-
 const getAccountIdFromToken = (token) => {
     try {
         const base64Url = token.split('.')[1];
@@ -94,7 +68,38 @@ const getAccountIdFromToken = (token) => {
     }
 };
 
-app.get('/api/profile/me', async (req, res) => {
+// Use a router for both /api and root paths to handle Vercel rewrites correctly
+const router = express.Router();
+
+router.get('/auth/status', async (req, res) => {
+    console.log("[API] GET /auth/status");
+    const token = await authenticate(req.npsso);
+    res.json({ authenticated: !!token, hasNpsso: !!req.npsso });
+});
+
+router.post('/api/auth/login', async (req, res) => {
+    // Handling both possible prefixes
+    const { npsso } = req.body;
+    const token = await authenticate(npsso);
+    if (token) res.json({ success: true });
+    else res.status(401).json({ error: 'Fallo al autenticar.' });
+});
+
+// Alias for generic login path
+router.post('/auth/login', async (req, res) => {
+    const { npsso } = req.body;
+    const token = await authenticate(npsso);
+    if (token) res.json({ success: true });
+    else res.status(401).json({ error: 'Fallo al autenticar.' });
+});
+
+router.post('/auth/logout', (req, res) => {
+    console.log("[API] POST /auth/logout");
+    if (req.npsso) tokenCache.delete(req.npsso);
+    res.json({ success: true });
+});
+
+router.get('/profile/me', async (req, res) => {
     console.log("[API] GET /api/profile/me");
     const accessToken = await authenticate(req.npsso);
     if (!accessToken) return res.status(401).json({ error: 'Sesión expirada.' });
@@ -110,11 +115,11 @@ app.get('/api/profile/me', async (req, res) => {
         res.json({ ...profile, trophySummary });
     } catch (error) {
         console.error("[PROFILE ERROR]", error.message);
-        res.status(500).json({ error: "Error al obtener perfil: " + error.message });
+        res.status(500).json({ error: "Error de Sony: " + error.message, code: error.code });
     }
 });
 
-app.get('/api/trophies/me', async (req, res) => {
+router.get('/trophies/me', async (req, res) => {
     console.log("[API] GET /api/trophies/me");
     const accessToken = await authenticate(req.npsso);
     if (!accessToken) return res.status(401).json({ error: 'Sesión expirada.' });
@@ -123,20 +128,16 @@ app.get('/api/trophies/me', async (req, res) => {
     if (!accountId) return res.status(500).json({ error: 'ID de cuenta no encontrado.' });
 
     try {
-        console.log(`[TROPHIES] Fetching titles for ${accountId}...`);
         const titles = await getUserTitles({ accessToken }, accountId, { limit: 32 });
-        console.log(`[TROPHIES] Found ${titles.trophyTitles?.length || 0} titles.`);
         res.json(titles);
     } catch (error) {
         console.error("[TROPHIES ERROR]", error.message);
-        res.status(500).json({ error: "Error al obtener trofeos: " + error.message });
+        res.status(500).json({ error: "Error de Sony: " + error.message });
     }
 });
 
-app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
+router.get('/titles/:npCommunicationId/trophies', async (req, res) => {
     const { npCommunicationId } = req.params;
-    console.log(`[API] GET /api/titles/${npCommunicationId}/trophies`);
-
     const accessToken = await authenticate(req.npsso);
     if (!accessToken) return res.status(401).json({ error: 'Sesión expirada.' });
 
@@ -146,15 +147,8 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
     try {
         const titlesResponse = await getUserTitles({ accessToken }, accountId);
         const titleInfo = titlesResponse.trophyTitles.find(t => t.npCommunicationId === npCommunicationId);
-        const titleName = titleInfo ? titleInfo.trophyTitleName : 'Game Trophies';
-
+        const titleName = titleInfo ? titleInfo.trophyTitleName : 'Juego';
         const serviceName = titleInfo?.npServiceName || (titleInfo?.trophyTitlePlatform?.includes('PS5') ? 'trophy2' : 'trophy');
-
-        let trophyGroups = {};
-        try {
-            const groupsResponse = await getTitleTrophyGroups({ accessToken }, npCommunicationId, { npServiceName: serviceName });
-            groupsResponse.trophyGroups.forEach(g => trophyGroups[g.trophyGroupId] = g.trophyGroupName);
-        } catch (err) { }
 
         const [staticTrophies, userTrophies] = await Promise.all([
             getTitleTrophies({ accessToken }, npCommunicationId, 'all', { npServiceName: serviceName }),
@@ -166,29 +160,18 @@ app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
             return {
                 ...t,
                 earned: earned ? earned.earned : false,
-                earnedDateTime: earned ? earned.earnedDateTime : null,
-                trophyEarnedRate: earned ? earned.trophyEarnedRate : null
+                earnedDateTime: earned ? earned.earnedDateTime : null
             };
         });
 
-        const trophiesToTranslate = mergedTrophies.filter(t => !translationCache.has(t.trophyId) && t.trophyDetail);
-        if (trophiesToTranslate.length > 0) {
-            try {
-                const translations = await translate(trophiesToTranslate.map(t => t.trophyDetail), { from: 'en', to: 'es' });
-                trophiesToTranslate.forEach((t, i) => translations[i] && translationCache.set(t.trophyId, translations[i]));
-            } catch (err) { }
-        }
-
-        res.json({
-            trophies: mergedTrophies.map(t => ({ ...t, trophyDetailEs: translationCache.get(t.trophyId) || null })),
-            titleName,
-            platform: titleInfo?.trophyTitlePlatform || '',
-            trophyGroups
-        });
+        res.json({ trophies: mergedTrophies, titleName, platform: titleInfo?.trophyTitlePlatform || '' });
     } catch (error) {
-        console.error("[DETAIL ERROR]", error.message);
         res.status(500).json({ error: error.message });
     }
 });
+
+// Map router to both /api and root
+app.use('/api', router);
+app.use('/', router);
 
 export default app;

@@ -57,14 +57,20 @@ const TrophyCard = ({ title }) => {
                     {/* Trophy Counts */}
                     <div className="flex justify-between items-center text-sm mb-3">
                         <div className="flex gap-2">
-                            {title.definedTrophies.platinum > 0 && (
+                            {title.definedTrophies?.platinum > 0 && (
                                 <span className="text-blue-300 flex items-center gap-1">
-                                    <Trophy size={14} /> {title.earnedTrophies.platinum}/{title.definedTrophies.platinum}
+                                    <Trophy size={14} /> {title.earnedTrophies?.platinum || 0}/{title.definedTrophies?.platinum || 0}
                                 </span>
                             )}
-                            <span className="text-yellow-300">{title.earnedTrophies.gold}/{title.definedTrophies.gold}</span>
-                            <span className="text-gray-300">{title.earnedTrophies.silver}/{title.definedTrophies.silver}</span>
-                            <span className="text-orange-300">{title.earnedTrophies.bronze}/{title.definedTrophies.bronze}</span>
+                            <span className="text-yellow-300">
+                                {title.earnedTrophies?.gold || 0}/{title.definedTrophies?.gold || 0}
+                            </span>
+                            <span className="text-gray-300">
+                                {title.earnedTrophies?.silver || 0}/{title.definedTrophies?.silver || 0}
+                            </span>
+                            <span className="text-orange-300">
+                                {title.earnedTrophies?.bronze || 0}/{title.definedTrophies?.bronze || 0}
+                            </span>
                         </div>
                     </div>
 

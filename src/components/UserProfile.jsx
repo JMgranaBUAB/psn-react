@@ -9,10 +9,10 @@ const UserProfile = ({ profile }) => {
         const avatars = profile.avatars;
 
         if (pics && pics.length > 0) {
-            return pics.find(p => p.size === 'xl')?.url || pics[0].url;
+            return pics.find(p => p.size === 'xl')?.url || pics[0]?.url || 'https://via.placeholder.com/150';
         }
         if (avatars && avatars.length > 0) {
-            return avatars.find(a => a.size === 'xl')?.url || avatars[0].url;
+            return avatars.find(a => a.size === 'xl')?.url || avatars[0]?.url || 'https://via.placeholder.com/150';
         }
         return 'https://via.placeholder.com/150';
     };

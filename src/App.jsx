@@ -103,31 +103,48 @@ function Dashboard() {
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[60vh]">
               <Loader2 className="animate-spin text-purple-500 mb-4" size={48} />
-              <p className="text-gray-400 animate-pulse">Conectando con PlayStation Network...</p>
-              <p className="text-xs text-gray-600 mt-2">Esto puede tardar unos segundos la primera vez.</p>
+              <p className="text-gray-400 animate-pulse font-medium">Conectando con PlayStation Network...</p>
+              <p className="text-[10px] text-gray-600 mt-4 max-w-xs text-center leading-relaxed">
+                Estamos recuperando tu perfil y tus últimos trofeos. La primera vez puede tardar un poco mientras la nube despierta.
+              </p>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center max-w-md mx-auto px-4">
-              <AlertCircle className="text-red-500 mb-4" size={48} />
-              <h2 className="text-xl font-bold mb-2 text-white">Error de Conexión</h2>
-              <p className="text-gray-400 mb-6">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-8 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition-all font-bold shadow-lg shadow-purple-500/20 active:scale-95"
-              >
-                Reintentar Conexión
-              </button>
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center max-w-lg mx-auto px-6">
+              <div className="bg-red-500/10 border border-red-500/20 p-8 rounded-3xl backdrop-blur-xl">
+                <AlertCircle className="text-red-500 mx-auto mb-6" size={64} />
+                <h2 className="text-2xl font-bold mb-3 text-white">Oops! Algo no salió bien</h2>
+                <p className="text-gray-400 mb-8 leading-relaxed">
+                  {error.includes("timeout")
+                    ? "La conexión con PlayStation ha tardado demasiado. Esto suele pasar si los servidores de Sony están lentos o si es el primer arranque."
+                    : error}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition-all font-bold shadow-lg shadow-purple-500/25 active:scale-95"
+                  >
+                    Reintentar ahora
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="px-8 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition-all font-medium border border-white/10"
+                  >
+                    Cambiar código NPSSO
+                  </button>
+                </div>
+              </div>
             </div>
           ) : (
-            <>
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {profile && <UserProfile profile={profile} />}
               <div className="mb-8">
-                <h3 className="text-xl font-semibold mb-6 flex items-center">
+                <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
+                  <Trophy size={20} className="text-yellow-500" />
                   Juegos Recientes
                 </h3>
                 <TrophyList titles={titles} />
               </div>
-            </>
+            </div>
           )}
         </main>
       </div>
@@ -137,15 +154,20 @@ function Dashboard() {
 
 function App() {
   const [isAuth, setIsAuth] = useState(null); // null = checking, true = auth, false = no auth
+  const [runtimeError, setRuntimeError] = useState(null);
 
   useEffect(() => {
-    // 30 second safety fallback to prevent infinite gray screen on cold starts
+    // Catch window errors to prevent blank screen
+    const handleError = (e) => setRuntimeError(e.message);
+    window.addEventListener('error', handleError);
+
+    // 45 second safety fallback (increased for very slow cold starts)
     const timer = setTimeout(() => {
       if (isAuth === null) {
-        console.warn("Auth check timed out after 30s, falling back to login.");
+        console.warn("Auth check timed out after 45s, falling back to login.");
         setIsAuth(false);
       }
-    }, 30000);
+    }, 45000);
 
     const checkAuth = async () => {
       try {
@@ -155,45 +177,31 @@ function App() {
 
         const npsso = localStorage.getItem('psn_npsso');
         if (!npsso) {
-          console.log("Auth: No NPSSO found in localStorage.");
           setIsAuth(false);
           clearTimeout(timer);
           return;
         }
 
-        console.log("Auth: Checking status on server...");
         const { data } = await axios.get(`${API_URL}/api/auth/status`, {
           headers: { 'Authorization': `Bearer ${npsso}` },
-          timeout: 15000 // 15s timeout for status check
+          timeout: 20000
         });
 
         if (data.authenticated) {
-          console.log("Auth: Authenticated successfully.");
           setIsAuth(true);
         } else {
-          console.log("Auth: Not authenticated on server, attempting auto-login...");
-          // If session expired on server, try to login again with NPSSO
           try {
             const loginRes = await axios.post(`${API_URL}/api/auth/login`,
               { npsso },
-              {
-                headers: { 'Authorization': `Bearer ${npsso}` },
-                timeout: 20000
-              }
+              { headers: { 'Authorization': `Bearer ${npsso}` }, timeout: 25000 }
             );
-            if (loginRes.data.success) {
-              console.log("Auth: Auto-login successful.");
-              setIsAuth(true);
-            } else {
-              setIsAuth(false);
-            }
+            if (loginRes.data.success) setIsAuth(true);
+            else setIsAuth(false);
           } catch (e) {
-            console.error("Auth: Auto-login failed:", e.message);
             setIsAuth(false);
           }
         }
       } catch (err) {
-        console.error("Auth: checkAuth failed:", err.message);
         setIsAuth(false);
       } finally {
         clearTimeout(timer);
@@ -201,13 +209,32 @@ function App() {
     };
 
     checkAuth();
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('error', handleError);
+    };
   }, []);
+
+  if (runtimeError) {
+    return (
+      <div className="min-h-screen bg-[#0f0f15] flex items-center justify-center p-6 text-center">
+        <div className="max-w-md">
+          <AlertCircle className="text-red-500 mx-auto mb-4" size={48} />
+          <h1 className="text-xl font-bold text-white mb-2">Error Crítico del Navegador</h1>
+          <p className="text-gray-400 text-sm mb-6">{runtimeError}</p>
+          <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="text-purple-400 underline">Borrar todo y reiniciar</button>
+        </div>
+      </div>
+    );
+  }
 
   if (isAuth === null) {
     return (
       <div className="min-h-screen bg-[#0f0f15] flex items-center justify-center">
-        <Loader2 className="animate-spin text-purple-500" size={48} />
+        <div className="flex flex-col items-center">
+          <Loader2 className="animate-spin text-purple-500 mb-4" size={48} />
+          <p className="text-gray-600 text-xs animate-pulse">Verificando sesión segura...</p>
+        </div>
       </div>
     );
   }
@@ -216,14 +243,8 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login onLoginSuccess={() => setIsAuth(true)} />} />
-        <Route
-          path="/"
-          element={isAuth ? <Dashboard /> : <Login onLoginSuccess={() => setIsAuth(true)} />}
-        />
-        <Route
-          path="/game/:npCommunicationId"
-          element={isAuth ? <GameTrophies /> : <Login onLoginSuccess={() => setIsAuth(true)} />}
-        />
+        <Route path="/" element={isAuth ? <Dashboard /> : <Login onLoginSuccess={() => setIsAuth(true)} />} />
+        <Route path="/game/:npCommunicationId" element={isAuth ? <GameTrophies /> : <Login onLoginSuccess={() => setIsAuth(true)} />} />
       </Routes>
     </Router>
   );
