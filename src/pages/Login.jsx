@@ -22,7 +22,10 @@ const Login = ({ onLoginSuccess }) => {
         setError(null);
 
         try {
-            const response = await axios.post('http://localhost:3001/api/auth/login', { npsso });
+            const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
+                ? `http://${window.location.hostname}:3001`
+                : '';
+            const response = await axios.post(`${API_URL}/api/auth/login`, { npsso });
             if (response.data.success) {
                 // Store in localStorage for persistence across sessions
                 localStorage.setItem('psn_npsso', npsso);

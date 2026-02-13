@@ -24,7 +24,10 @@ const GameTrophies = () => {
                 setLoading(true);
             }
 
-            const response = await axios.get(`http://localhost:3001/api/titles/${npCommunicationId}/trophies`);
+            const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
+                ? `http://${window.location.hostname}:3001`
+                : '';
+            const response = await axios.get(`${API_URL}/api/titles/${npCommunicationId}/trophies`);
 
             const fetchedTrophies = response.data.trophies || [];
 

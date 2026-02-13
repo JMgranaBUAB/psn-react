@@ -1,169 +1,114 @@
 # 🎮 PSN Trophy Viewer
 
-A modern, beautiful React application for viewing your PlayStation Network trophies with detailed statistics and progress tracking.
+A modern, high-performance React application for viewing your PlayStation Network trophies with detailed statistics, smart grouping, and automatic translations.
 
 ![React](https://img.shields.io/badge/React-18.3-61dafb?style=flat&logo=react)
 ![Vite](https://img.shields.io/badge/Vite-5.4-646cff?style=flat&logo=vite)
+![Vercel](https://img.shields.io/badge/Vercel-Deployed-black?style=flat&logo=vercel)
 ![Node](https://img.shields.io/badge/Node-Express-339933?style=flat&logo=node.js)
 
 ## ✨ Features
 
-### 🏆 Trophy Dashboard
-- **User Profile**: Display your PSN avatar, online ID, and trophy level
-- **Trophy Statistics**: Complete breakdown of Platinum, Gold, Silver, and Bronze trophies
-- **Recent Games**: View your most recently played games with trophy progress
+### 🔐 Secure Authentication
+- **Dynamic Login**: No more editing `.env` files. Login directly through the web interface.
+- **NPSSO Guide**: Built-in step-by-step instructions on how to obtain your secure token.
+- **Persistence**: Remembers your session using secure local storage.
+- **Multi-Device**: Works seamlessly on PC and Mobile.
 
-### 🎯 Game Detail View
-- **Complete Trophy Lists**: Browse all trophies for any game in your library
-- **DLC Support**: Automatically groups trophies by base game and DLC packs
-- **Trophy Statistics**: See earned vs. total trophies for each section
-- **Smart Filtering**: 
-  - View all trophies
-  - Show only earned trophies
-  - Show only unearned trophies
-- **Rarity Sorting**: Trophies sorted from rarest to most common within each group
+### 🏆 Advanced Trophy Tracking
+- **User Profile**: Real-time display of avatar, level (with progress bar), and full trophy counts.
+- **Smart Grouping**: Automatically separates base game trophies from DLC/Add-on packs.
+- **Spanish Translation**: Automatic machine translation for all trophy descriptions using a backend proxy.
+- **Auto-Sorting**: Trophies are sorted by rarity (rarest first) to help you track complex achievements.
+
+### 🎯 Pro Dashboard
+- **Platform Badges**: Visual indicators for PS5, PS4, PS3, and Vita titles.
+- **Platinum Highlight**: Games you've platinumed are highlighted with a distinct premium border.
+- **Real-time Stats**: Track your completion percentage for every game and DLC group.
 
 ### 🎨 Premium Design
-- Dark mode with glassmorphism effects
-- Smooth animations and transitions
-- Responsive layout
-- Color-coded trophy types (Platinum, Gold, Silver, Bronze)
+- **Dark Mode Aesthetic**: Sleek gaming-inspired interface with glassmorphism effects.
+- **Mobile First**: Fully responsive design that works perfectly on smartphones.
+- **Smooth UX**: Powered by Framer Motion for premium feel and transitions.
 
 ## 🛠️ Tech Stack
 
 **Frontend:**
-- React 18 with Vite
-- React Router for navigation
-- Axios for API calls
-- Framer Motion for animations
-- Lucide React for icons
-- Tailwind CSS for styling
+- **React 18** (Vite)
+- **Tailwind CSS** (Styling)
+- **Framer Motion** (Animations)
+- **Lucide React** (Iconography)
+- **Axios** (API Management)
 
 **Backend:**
-- Node.js + Express
-- psn-api for PlayStation Network integration
-- CORS enabled proxy server
+- **Node.js + Express**
+- **psn-api** (Official PSN Integration)
+- **Vercel Serverless Functions** (Cloud Deployment)
+- **Google Translate API** (Automatic Translation)
 
-## 📋 Prerequisites
+## 🚀 Getting Started
 
-- Node.js (v16 or higher)
-- npm or yarn
-- A PlayStation Network account
-- NPSSO authentication token
+### Local Development
 
-## 🚀 Installation
-
-1. **Clone the repository**
+1. **Clone & Install**
    ```bash
    git clone https://github.com/JMgranaBUAB/psn-react.git
    cd psn-react
-   ```
-
-2. **Install dependencies**
-   ```bash
    npm install
    ```
 
-3. **Configure environment variables**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   NPSSO=your_npsso_token_here
-   ```
-
-   **How to get your NPSSO token:**
-   1. Login to [PlayStation.com](https://www.playstation.com/)
-   2. Open browser DevTools (F12)
-   3. Go to Application → Cookies → https://www.playstation.com
-   4. Find the cookie named `NPSSO` and copy its value
-
-   ⚠️ **Important**: Keep your NPSSO token private. Never commit it to version control.
-
-4. **Start the development servers**
+2. **Run the App**
    ```bash
    npm run dev
    ```
+   - **Frontend**: `http://localhost:5173`
+   - **Backend**: `http://localhost:3001`
 
-   This will start both:
-   - Frontend (Vite): `http://localhost:5173`
-   - Backend (Express): `http://localhost:3001`
+### 📱 Mobile Access
+To use the app on your phone during local development:
+1. Ensure both devices are on the same Wi-Fi.
+2. Check the terminal output for the **Mobile URL** (e.g., `http://192.168.1.45:5173`).
+3. Open that URL on your phone!
+
+### ☁️ Cloud Deployment
+This project is pre-configured for **Vercel**:
+1. Push your code to GitHub.
+2. Connect your repository to Vercel.
+3. Done! The project will automatically deploy using Serverless Functions.
 
 ## 📁 Project Structure
 
 ```
 psn-react/
+├── api/                # Vercel Serverless Functions (Backend)
 ├── src/
-│   ├── components/
-│   │   ├── TrophyCard.jsx      # Individual game card
-│   │   ├── TrophyList.jsx      # Dashboard game grid
-│   │   └── UserProfile.jsx     # Profile header component
-│   ├── pages/
-│   │   └── GameTrophies.jsx    # Detailed trophy view
-│   ├── App.jsx                  # Main app with routing
-│   ├── main.jsx                 # Entry point
-│   └── index.css                # Global styles
-├── server.js                    # Express proxy server
-├── .env                         # Environment variables (not in repo)
-├── .env.example                 # Environment template
-└── package.json
+│   ├── components/     # UI Building blocks
+│   ├── pages/          # Full page views (Login, Dashboard, Game)
+│   ├── App.jsx         # Routing & Auth Logic
+│   └── index.css       # Tailwind & Global styles
+├── server.js           # Local Express proxy server
+├── vercel.json         # Cloud deployment config
+└── package.json        # Dependencies & Scripts
 ```
 
-## 🎮 Usage
+## 🎮 How to Login (NPSSO)
 
-1. **Dashboard**: View your profile and recent games
-2. **Click any game**: Navigate to the detailed trophy view
-3. **Filter trophies**: Use the filter buttons (Todos/Obtenidos/No obtenidos)
-4. **Track progress**: See completion statistics for each DLC section
-
-## 🔧 Available Scripts
-
-- `npm run dev` - Start both frontend and backend servers
-- `npm run server` - Start only the backend server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-
-## 🌟 Key Features Explained
-
-### Trophy Grouping
-Games with DLC automatically separate trophies into:
-- **Base Game**: Main game trophies
-- **DLC Sections**: Each DLC pack with its own trophy set
-
-### Smart Filtering
-Filter trophies by completion status without losing track of DLC organization:
-- Empty sections are automatically hidden when filtered
-
-### Rarity-Based Sorting
-Trophies are sorted by their earned rate (rarest first), helping you:
-- Identify challenging trophies
-- Prioritize trophy hunting
-- Track rare achievements
-
-## 🔐 Security Notes
-
-- NPSSO tokens expire periodically and need to be refreshed
-- Never share your NPSSO token or commit it to public repositories
-- The token grants access to your PSN account data
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📝 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 Acknowledgments
-
-- [psn-api](https://github.com/achievements-app/psn-api) - PlayStation Network API wrapper
-- [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS framework
-- [Framer Motion](https://www.framer.com/motion/) - Animation library
-
-## 📧 Contact
-
-**JMgranaBUAB**
-- GitHub: [@JMgranaBUAB](https://github.com/JMgranaBUAB)
+The app requires an `NPSSO` token to access your private trophy data securely.
+1. Use the **integrated guide** on the login page.
+2. Log in at [PlayStation.com](https://www.playstation.com).
+3. Visit [ca.account.sony.com/api/v1/ssocookie](https://ca.account.sony.com/api/v1/ssocookie).
+4. Copy the 64-character code and paste it into the app.
 
 ---
 
-⭐ If you found this project useful, please consider giving it a star!
+## 🤝 Contributing
+Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
+
+## 📝 License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## 📧 Contact
+**JMgranaBUAB** - [GitHub](https://github.com/JMgranaBUAB)
+
+---
+⭐ **Give this project a star if it helped you track your trophies!**

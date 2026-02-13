@@ -16,7 +16,10 @@ function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:3001/api/auth/logout');
+      const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
+        ? `http://${window.location.hostname}:3001`
+        : '';
+      await axios.post(`${API_URL}/api/auth/logout`);
       localStorage.removeItem('psn_npsso');
       navigate('/login');
     } catch (err) {
@@ -30,12 +33,16 @@ function Dashboard() {
         setLoading(true);
         setError(null);
 
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
+          ? `http://${window.location.hostname}:3001`
+          : '';
+
         // 1. Fetch MY Profile
-        const profileRes = await axios.get(`http://localhost:3001/api/profile/me`);
+        const profileRes = await axios.get(`${API_URL}/api/profile/me`);
         setProfile(profileRes.data);
 
         // 2. Fetch MY Trophies (Titles)
-        const trophiesRes = await axios.get(`http://localhost:3001/api/trophies/me`);
+        const trophiesRes = await axios.get(`${API_URL}/api/trophies/me`);
         setTitles(trophiesRes.data?.trophyTitles || []);
 
       } catch (err) {
@@ -123,7 +130,11 @@ function App() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const { data } = await axios.get('http://localhost:3001/api/auth/status');
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
+          ? `http://${window.location.hostname}:3001`
+          : ''; // In production (Vercel), requests go to /api on the same origin
+
+        const { data } = await axios.get(`${API_URL}/api/auth/status`);
 
         if (data.authenticated) {
           setIsAuth(true);
@@ -132,7 +143,7 @@ function App() {
           const savedNpsso = localStorage.getItem('psn_npsso');
           if (savedNpsso) {
             try {
-              const loginRes = await axios.post('http://localhost:3001/api/auth/login', { npsso: savedNpsso });
+              const loginRes = await axios.post(`${API_URL}/api/auth/login`, { npsso: savedNpsso });
               if (loginRes.data.success) {
                 setIsAuth(true);
                 return;

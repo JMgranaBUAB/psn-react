@@ -1,0 +1,10 @@
+node_modules
+.env
+dist
+.gemini
+.agent
+.system_generated
+xampp
+htdocs
+ProyectosPersonales
+psn-react/.env
