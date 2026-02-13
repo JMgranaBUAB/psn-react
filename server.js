@@ -14,42 +14,98 @@ app.use(express.json());
 
 // PSN Auth Token storage
 let access_token = null;
+let current_npsso = process.env.NPSSO || null;
 
 // Simple in-memory cache for translations to avoid redundant API calls
 const translationCache = new Map();
 
 const authenticate = async () => {
-    const npsso = process.env.NPSSO;
-    console.log("Attempting authentication with NPSSO length:", npsso ? npsso.length : 'None');
-    if (!npsso) {
-        console.error('NPSSO token not found in environment variables.');
+    const npsso = current_npsso;
+    console.log("--- PSN AUTHENTICATION START ---");
+    console.log("Using NPSSO (first 5 chars):", npsso ? npsso.substring(0, 5) + '...' : 'NONE');
+
+    if (!npsso || npsso.length !== 64) {
+        console.error('NPSSO token invalid or missing.');
         return null;
     }
 
     try {
+        console.log("Exchanging NPSSO for Access Code...");
         const accessCode = await exchangeNpssoForCode(npsso);
-        console.log("Access Code obtained.");
+        console.log("Access Code obtained successfully.");
+
+        console.log("Exchanging Code for Access Token...");
         const authorization = await exchangeCodeForAccessToken(accessCode);
         access_token = authorization.accessToken;
-        console.log('PSN Authenticated successfully. Token:', access_token.substring(0, 10) + '...');
+
+        console.log('PSN Authenticated successfully. Token expires in:', authorization.expiresIn);
         return access_token;
     } catch (error) {
-        console.error('Error authenticating with PSN:', error);
+        console.error('PSN AUTHENTICATION FAILED:');
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Data:', JSON.stringify(error.response.data));
+        } else {
+            console.error('Error Message:', error.message);
+        }
+        access_token = null;
         return null;
     }
 };
+
+app.get('/api/auth/status', (req, res) => {
+    res.json({
+        authenticated: !!access_token,
+        hasNpsso: !!current_npsso
+    });
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    const { npsso } = req.body;
+    console.log("Login request received with NPSSO length:", npsso?.length);
+
+    if (!npsso || npsso.length !== 64) {
+        return res.status(400).json({ error: 'El código NPSSO debe tener exactamente 64 caracteres.' });
+    }
+
+    current_npsso = npsso;
+    const token = await authenticate();
+
+    if (token) {
+        console.log("Login successful.");
+        res.json({ success: true, message: 'Authenticated successfully' });
+    } else {
+        console.log("Login failed, resetting to default NPSSO.");
+        current_npsso = process.env.NPSSO || null; // Reset if failed
+        res.status(401).json({ error: 'No se pudo conectar con PlayStation. Verifica que el código NPSSO sea reciente y no haya expirado.' });
+    }
+});
+
+app.post('/api/auth/logout', (req, res) => {
+    access_token = null;
+    current_npsso = process.env.NPSSO || null;
+    res.json({ success: true });
+});
 
 // Helper: Extract Account ID from JWT Token
 const getAccountIdFromToken = (token) => {
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+        // Use Buffer for Node.js compatibility if atob is not available
+        const decoded = typeof atob === 'function'
+            ? atob(base64)
+            : Buffer.from(base64, 'base64').toString('binary');
+
+        const jsonPayload = decodeURIComponent(decoded.split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
-        return JSON.parse(jsonPayload).account_id;
+
+        const payload = JSON.parse(jsonPayload);
+        console.log("Token payload account_id:", payload.account_id);
+        return payload.account_id;
     } catch (e) {
-        console.error("Error decoding token:", e);
+        console.error("Error decoding token payload:", e.message);
         return null;
     }
 };

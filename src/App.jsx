@@ -1,16 +1,28 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Gamepad2, Loader2, AlertCircle } from 'lucide-react';
+import { Gamepad2, Loader2, AlertCircle, LogOut } from 'lucide-react';
 import UserProfile from './components/UserProfile';
 import TrophyList from './components/TrophyList';
 import GameTrophies from './pages/GameTrophies';
+import Login from './pages/Login';
 
 function Dashboard() {
   const [profile, setProfile] = useState(null);
   const [titles, setTitles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('http://localhost:3001/api/auth/logout');
+      localStorage.removeItem('psn_npsso');
+      navigate('/login');
+    } catch (err) {
+      console.error("Error logging out:", err);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,8 +63,17 @@ function Dashboard() {
             <Gamepad2 className="text-purple-500" size={32} />
             <h1 className="text-2xl font-bold tracking-tight">PSN <span className="text-purple-400">Trophies</span></h1>
           </div>
-          <div className="text-sm text-gray-500">
-            v1.0.0
+          <div className="flex items-center space-x-6">
+            <div className="text-sm text-gray-500 hidden sm:block">
+              v1.0.0
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-gray-400 hover:text-red-400 transition-colors px-3 py-1 bg-white/5 hover:bg-red-500/10 rounded-lg border border-white/5 hover:border-red-500/20"
+            >
+              <LogOut size={16} />
+              <span className="text-sm font-medium">Salir</span>
+            </button>
           </div>
         </header>
 
@@ -95,12 +116,61 @@ function Dashboard() {
   );
 }
 
+
 function App() {
+  const [isAuth, setIsAuth] = useState(null); // null = checking, true = auth, false = no auth
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const { data } = await axios.get('http://localhost:3001/api/auth/status');
+
+        if (data.authenticated) {
+          setIsAuth(true);
+        } else {
+          // If not authenticated on server, check if we have NPSSO in localStorage to auto-login
+          const savedNpsso = localStorage.getItem('psn_npsso');
+          if (savedNpsso) {
+            try {
+              const loginRes = await axios.post('http://localhost:3001/api/auth/login', { npsso: savedNpsso });
+              if (loginRes.data.success) {
+                setIsAuth(true);
+                return;
+              }
+            } catch (e) {
+              console.error("Auto-login failed:", e);
+            }
+          }
+          setIsAuth(false);
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        setIsAuth(false);
+      }
+    };
+    checkAuth();
+  }, []);
+
+  if (isAuth === null) {
+    return (
+      <div className="min-h-screen bg-[#0f0f15] flex items-center justify-center">
+        <Loader2 className="animate-spin text-purple-500" size={48} />
+      </div>
+    );
+  }
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/game/:npCommunicationId" element={<GameTrophies />} />
+        <Route path="/login" element={<Login onLoginSuccess={() => setIsAuth(true)} />} />
+        <Route
+          path="/"
+          element={isAuth ? <Dashboard /> : <Login onLoginSuccess={() => setIsAuth(true)} />}
+        />
+        <Route
+          path="/game/:npCommunicationId"
+          element={isAuth ? <GameTrophies /> : <Login onLoginSuccess={() => setIsAuth(true)} />}
+        />
       </Routes>
     </Router>
   );
