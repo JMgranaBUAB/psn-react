@@ -11,15 +11,42 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// PSN Auth Token storage
-let access_token = null;
-let current_npsso = process.env.NPSSO || null;
-
-// Simple in-memory cache for translations
+// In-memory caches for stateless environment
+const tokenCache = new Map();
 const translationCache = new Map();
 
-// Middleware to extract NPSSO from Authorization header
-app.use(async (req, res, next) => {
+const authenticate = async (npsso) => {
+    if (!npsso || npsso.length !== 64) return null;
+
+    // Check cache (PSN tokens typically last 1 hour)
+    if (tokenCache.has(npsso)) {
+        const cached = tokenCache.get(npsso);
+        if (Date.now() < cached.expiresAt) {
+            console.log("Using cached token for NPSSO:", npsso.substring(0, 5));
+            return cached.token;
+        }
+    }
+
+    try {
+        console.log("Authenticating with PSN (Fresh)...");
+        const accessCode = await exchangeNpssoForCode(npsso);
+        const authorization = await exchangeCodeForAccessToken(accessCode);
+
+        // Cache for 50 minutes to be safe
+        tokenCache.set(npsso, {
+            token: authorization.accessToken,
+            expiresAt: Date.now() + (50 * 60 * 1000)
+        });
+
+        return authorization.accessToken;
+    } catch (error) {
+        console.error('PSN Auth Error:', error.message);
+        return null;
+    }
+};
+
+// Middleware to extract NPSSO
+app.use((req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         req.npsso = authHeader.split(' ')[1];
@@ -28,20 +55,6 @@ app.use(async (req, res, next) => {
     }
     next();
 });
-
-const authenticate = async (npsso) => {
-    if (!npsso || npsso.length !== 64) return null;
-
-    try {
-        console.log("Authenticating with NPSSO...");
-        const accessCode = await exchangeNpssoForCode(npsso);
-        const authorization = await exchangeCodeForAccessToken(accessCode);
-        return authorization.accessToken;
-    } catch (error) {
-        console.error('PSN Auth Error:', error.message);
-        return null;
-    }
-};
 
 app.get('/api/auth/status', async (req, res) => {
     const token = await authenticate(req.npsso);
@@ -62,8 +75,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-    access_token = null;
-    current_npsso = process.env.NPSSO || null;
+    if (req.npsso) tokenCache.delete(req.npsso);
     res.json({ success: true });
 });
 
@@ -81,10 +93,10 @@ const getAccountIdFromToken = (token) => {
 
 app.get('/api/profile/me', async (req, res) => {
     const accessToken = await authenticate(req.npsso);
-    if (!accessToken) return res.status(401).json({ error: 'Authentication failed' });
+    if (!accessToken) return res.status(401).json({ error: 'Sesión expirada o inválida. Por favor, inicia sesión de nuevo.' });
 
     const accountId = getAccountIdFromToken(accessToken);
-    if (!accountId) return res.status(500).json({ error: 'No account ID' });
+    if (!accountId) return res.status(500).json({ error: 'No se pudo obtener el ID de cuenta.' });
 
     try {
         const [profile, trophySummary] = await Promise.all([
@@ -99,7 +111,7 @@ app.get('/api/profile/me', async (req, res) => {
 
 app.get('/api/trophies/me', async (req, res) => {
     const accessToken = await authenticate(req.npsso);
-    if (!accessToken) return res.status(401).json({ error: 'Authentication failed' });
+    if (!accessToken) return res.status(401).json({ error: 'Sesión expirada.' });
 
     const accountId = getAccountIdFromToken(accessToken);
     if (!accountId) return res.status(500).json({ error: 'No account ID' });
@@ -114,7 +126,7 @@ app.get('/api/trophies/me', async (req, res) => {
 
 app.get('/api/titles/:npCommunicationId/trophies', async (req, res) => {
     const accessToken = await authenticate(req.npsso);
-    if (!accessToken) return res.status(401).json({ error: 'Authentication failed' });
+    if (!accessToken) return res.status(401).json({ error: 'Sesión expirada.' });
 
     const accountId = getAccountIdFromToken(accessToken);
     if (!accountId) return res.status(500).json({ error: 'No account ID' });
