@@ -160,11 +160,18 @@ router.get('/titles/:npCommunicationId/trophies', async (req, res) => {
             return {
                 ...t,
                 earned: earned ? earned.earned : false,
-                earnedDateTime: earned ? earned.earnedDateTime : null
+                earnedDateTime: earned ? earned.earnedDateTime : null,
+                trophyEarnedRate: earned ? earned.trophyEarnedRate : (t.trophyEarnedRate || "0.0")
             };
         });
 
-        res.json({ trophies: mergedTrophies, titleName, platform: titleInfo?.trophyTitlePlatform || '' });
+        // Restore translation support if cache has it
+        const finalTrophies = mergedTrophies.map(t => ({
+            ...t,
+            trophyDetailEs: translationCache.get(t.trophyId) || null
+        }));
+
+        res.json({ trophies: finalTrophies, titleName, platform: titleInfo?.trophyTitlePlatform || '' });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
