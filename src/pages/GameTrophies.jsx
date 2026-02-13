@@ -10,7 +10,7 @@ const GameTrophies = () => {
     const [titleName, setTitleName] = useState('');
     const [platform, setPlatform] = useState('');
     const [trophyGroupNames, setTrophyGroupNames] = useState({});
-    const [filter, setFilter] = useState('all'); // 'all', 'earned', 'unearned'
+    const [filter, setFilter] = useState('unearned'); // 'all', 'earned', 'unearned'
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState(null);
