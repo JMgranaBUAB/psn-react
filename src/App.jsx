@@ -49,24 +49,25 @@ function Dashboard() {
         const npsso = localStorage.getItem('psn_npsso');
         const config = {
           headers: npsso ? { 'Authorization': `Bearer ${npsso}` } : {},
-          timeout: 8000 // 8s timeout for fetching data
+          timeout: 20000 // 20s timeout for fetching data (PSN can be slow)
         };
 
-        // 1. Fetch Profile
-        const profileRes = await axios.get(`${API_URL}/api/profile/me`, config);
-        setProfile(profileRes.data);
+        console.log("Dashboard: Fetching profile and trophies in parallel...");
 
-        // 2. Fetch Trophies (Titles)
-        const trophiesRes = await axios.get(`${API_URL}/api/trophies/me`, config);
+        // Parallel fetching to save time and stay within Vercel execution limits
+        const [profileRes, trophiesRes] = await Promise.all([
+          axios.get(`${API_URL}/api/profile/me`, config),
+          axios.get(`${API_URL}/api/trophies/me`, config)
+        ]);
+
+        console.log("Dashboard: Data received successfully.");
+        setProfile(profileRes.data);
         setTitles(trophiesRes.data?.trophyTitles || []);
 
       } catch (err) {
         console.error("Error fetching PSN data:", err);
-        if (err.code === 'ECONNABORTED') {
-          setError("La conexión con PlayStation ha tardado demasiado. Por favor, reintenta.");
-        } else {
-          setError(err.response?.data?.error || "Error al cargar los datos. Verifica tu conexión.");
-        }
+        const errorMsg = err.response?.data?.error || err.message || "Error al cargar los datos.";
+        setError(errorMsg);
       } finally {
         setLoading(false);
       }
@@ -77,6 +78,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0f0f15] text-white font-sans selection:bg-purple-500 selection:text-white">
+      {/* Background gradients */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-900/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px]" />
@@ -102,17 +104,18 @@ function Dashboard() {
             <div className="flex flex-col items-center justify-center h-[60vh]">
               <Loader2 className="animate-spin text-purple-500 mb-4" size={48} />
               <p className="text-gray-400 animate-pulse">Conectando con PlayStation Network...</p>
+              <p className="text-xs text-gray-600 mt-2">Esto puede tardar unos segundos la primera vez.</p>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center max-w-md mx-auto">
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center max-w-md mx-auto px-4">
               <AlertCircle className="text-red-500 mb-4" size={48} />
-              <h2 className="text-xl font-bold mb-2">Error de Conexión</h2>
+              <h2 className="text-xl font-bold mb-2 text-white">Error de Conexión</h2>
               <p className="text-gray-400 mb-6">{error}</p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors shadow-lg shadow-purple-500/20"
+                className="px-8 py-3 bg-purple-600 hover:bg-purple-700 rounded-xl transition-all font-bold shadow-lg shadow-purple-500/20 active:scale-95"
               >
-                Reintentar
+                Reintentar Conexión
               </button>
             </div>
           ) : (
@@ -136,13 +139,13 @@ function App() {
   const [isAuth, setIsAuth] = useState(null); // null = checking, true = auth, false = no auth
 
   useEffect(() => {
-    // 10 second fallback to prevent infinite gray screen
+    // 30 second safety fallback to prevent infinite gray screen on cold starts
     const timer = setTimeout(() => {
       if (isAuth === null) {
-        console.warn("Auth check timed out, falling back to login.");
+        console.warn("Auth check timed out after 30s, falling back to login.");
         setIsAuth(false);
       }
-    }, 10000);
+    }, 30000);
 
     const checkAuth = async () => {
       try {
@@ -152,37 +155,45 @@ function App() {
 
         const npsso = localStorage.getItem('psn_npsso');
         if (!npsso) {
+          console.log("Auth: No NPSSO found in localStorage.");
           setIsAuth(false);
           clearTimeout(timer);
           return;
         }
 
+        console.log("Auth: Checking status on server...");
         const { data } = await axios.get(`${API_URL}/api/auth/status`, {
           headers: { 'Authorization': `Bearer ${npsso}` },
-          timeout: 6000 // 6s timeout for initial check
+          timeout: 15000 // 15s timeout for status check
         });
 
         if (data.authenticated) {
+          console.log("Auth: Authenticated successfully.");
           setIsAuth(true);
         } else {
+          console.log("Auth: Not authenticated on server, attempting auto-login...");
           // If session expired on server, try to login again with NPSSO
           try {
             const loginRes = await axios.post(`${API_URL}/api/auth/login`,
               { npsso },
-              { headers: { 'Authorization': `Bearer ${npsso}` }, timeout: 8000 }
+              {
+                headers: { 'Authorization': `Bearer ${npsso}` },
+                timeout: 20000
+              }
             );
             if (loginRes.data.success) {
+              console.log("Auth: Auto-login successful.");
               setIsAuth(true);
             } else {
               setIsAuth(false);
             }
           } catch (e) {
-            console.error("Auto-login failed:", e);
+            console.error("Auth: Auto-login failed:", e.message);
             setIsAuth(false);
           }
         }
       } catch (err) {
-        console.error("Auth check failed:", err);
+        console.error("Auth: checkAuth failed:", err.message);
         setIsAuth(false);
       } finally {
         clearTimeout(timer);
