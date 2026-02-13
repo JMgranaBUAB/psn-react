@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Gamepad2, Loader2, AlertCircle, LogOut } from 'lucide-react';
+import { Gamepad2, Loader2, AlertCircle, LogOut, Trophy } from 'lucide-react';
 import UserProfile from './components/UserProfile';
 import TrophyList from './components/TrophyList';
 import GameTrophies from './pages/GameTrophies';
