@@ -22,9 +22,7 @@ const Login = ({ onLoginSuccess }) => {
         setError(null);
 
         try {
-            const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
-                ? `http://${window.location.hostname}:3001`
-                : '';
+            const API_URL = '';
             const response = await axios.post(`${API_URL}/api/auth/login`,
                 { npsso },
                 { headers: { 'Authorization': `Bearer ${npsso}` } }

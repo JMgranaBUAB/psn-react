@@ -20,9 +20,7 @@ function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
-        ? `http://${window.location.hostname}:3001`
-        : '';
+      const API_URL = '';
       const npsso = localStorage.getItem('psn_npsso');
       await axios.post(`${API_URL}/api/auth/logout`, {}, {
         headers: npsso ? { 'Authorization': `Bearer ${npsso}` } : {}
@@ -43,9 +41,7 @@ function Dashboard() {
       else setLoading(true);
       setError(null);
 
-      const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
-        ? `http://${window.location.hostname}:3001`
-        : '';
+      const API_URL = '';
 
       const npsso = localStorage.getItem('psn_npsso');
       const config = {
@@ -182,9 +178,7 @@ function App() {
 
     const checkAuth = async () => {
       try {
-        const API_URL = window.location.hostname === 'localhost' || window.location.hostname.includes('192.168.')
-          ? `http://${window.location.hostname}:3001`
-          : '';
+        const API_URL = '';
 
         const npsso = localStorage.getItem('psn_npsso');
         if (!npsso) {
