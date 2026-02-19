@@ -181,6 +181,10 @@ const GameTrophies = () => {
                                             const earned = trophies.filter(t => t.trophyType === type && t.earned).length;
                                             const pending = total - earned;
 
+                                            // PSN Point values
+                                            const pointValues = { bronze: 15, silver: 30, gold: 90, platinum: 300 };
+                                            const pendingPoints = pending * pointValues[type];
+
                                             if (total === 0) return null;
 
                                             return (
@@ -194,7 +198,12 @@ const GameTrophies = () => {
                                                     </div>
                                                     <div className="text-xs text-gray-500 uppercase mt-1">{type}</div>
                                                     <div className="text-xs text-gray-400 mt-1">
-                                                        {pending > 0 ? `${pending} pendiente${pending > 1 ? 's' : ''}` : '✓ Completo'}
+                                                        {pending > 0 ? (
+                                                            <>
+                                                                <span>{pending} pendiente{pending > 1 ? 's' : ''}</span>
+                                                                <span className="block text-[10px] text-yellow-500/80">+{pendingPoints} pts</span>
+                                                            </>
+                                                        ) : '✓ Completo'}
                                                     </div>
                                                 </div>
                                             );

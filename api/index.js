@@ -167,7 +167,24 @@ router.get('/titles/:npCommunicationId/trophies', async (req, res) => {
             };
         });
 
-        // Restore translation support if cache has it
+        // Translation support
+        const trophiesToTranslate = mergedTrophies.filter(t => !translationCache.has(t.trophyId));
+
+        if (trophiesToTranslate.length > 0) {
+            try {
+                console.log(`[TRANS] Translating ${trophiesToTranslate.length} trophies...`);
+                const textsToTranslate = trophiesToTranslate.map(t => t.trophyDetail);
+                const translations = await translate(textsToTranslate, { to: 'es' });
+
+                trophiesToTranslate.forEach((t, index) => {
+                    const translatedText = Array.isArray(translations) ? translations[index] : translations;
+                    translationCache.set(t.trophyId, translatedText);
+                });
+            } catch (error) {
+                console.error("[TRANS ERROR]", error.message);
+            }
+        }
+
         const finalTrophies = mergedTrophies.map(t => ({
             ...t,
             trophyDetailEs: translationCache.get(t.trophyId) || null
