@@ -237,6 +237,11 @@ const GameTrophies = () => {
                                                 <div className="flex items-start justify-between">
                                                     <h3 className={`font-bold text-lg ${trophy.earned ? 'text-white' : 'text-gray-400'}`}>
                                                         {trophy.trophyName}
+                                                        {trophy.trophyNameEs && trophy.trophyNameEs !== trophy.trophyName && (
+                                                            <span className="block text-sm font-normal text-blue-300 italic">
+                                                                {trophy.trophyNameEs}
+                                                            </span>
+                                                        )}
                                                     </h3>
                                                     <span className={`text-xs px-2 py-1 rounded font-mono uppercase tracking-wider
                                                         ${trophy.trophyType === 'platinum' ? 'bg-blue-500/20 text-blue-300' :

@@ -152,10 +152,16 @@ router.get('/titles/:npCommunicationId/trophies', async (req, res) => {
         const titleName = titleInfo ? titleInfo.trophyTitleName : 'Juego';
         const serviceName = titleInfo?.npServiceName || (titleInfo?.trophyTitlePlatform?.includes('PS5') ? 'trophy2' : 'trophy');
 
-        const [staticTrophies, userTrophies] = await Promise.all([
+        const [staticTrophies, userTrophies, trophyGroupsResponse] = await Promise.all([
             getTitleTrophies({ accessToken }, npCommunicationId, 'all', { npServiceName: serviceName }),
-            getUserTrophiesEarnedForTitle({ accessToken }, accountId, npCommunicationId, 'all', { limit: 300, npServiceName: serviceName })
+            getUserTrophiesEarnedForTitle({ accessToken }, accountId, npCommunicationId, 'all', { limit: 300, npServiceName: serviceName }),
+            getTitleTrophyGroups({ accessToken }, npCommunicationId, { npServiceName: serviceName })
         ]);
+
+        const trophyGroups = {};
+        trophyGroupsResponse.trophyGroups.forEach(g => {
+            trophyGroups[g.trophyGroupId] = g.trophyGroupName;
+        });
 
         const mergedTrophies = staticTrophies.trophies.map(t => {
             const earned = userTrophies.trophies.find(u => u.trophyId === t.trophyId);
@@ -167,18 +173,45 @@ router.get('/titles/:npCommunicationId/trophies', async (req, res) => {
             };
         });
 
-        // Translation support
-        const trophiesToTranslate = mergedTrophies.filter(t => !translationCache.has(t.trophyId));
+        // Comprehensive Translation Support
+        const translationTasks = [];
 
-        if (trophiesToTranslate.length > 0) {
+        // 1. Game Title
+        const titleKey = `title_${npCommunicationId}`;
+        if (!translationCache.has(titleKey)) {
+            translationTasks.push({ key: titleKey, text: titleName, type: 'title' });
+        }
+
+        // 2. Trophy Groups
+        for (const [groupId, groupName] of Object.entries(trophyGroups)) {
+            const groupKey = `group_${npCommunicationId}_${groupId}`;
+            if (!translationCache.has(groupKey)) {
+                translationTasks.push({ key: groupKey, text: groupName, type: 'group' });
+            }
+        }
+
+        // 3. Trophy Names and Details
+        mergedTrophies.forEach(t => {
+            const nameKey = `name_${npCommunicationId}_${t.trophyId}`;
+            const detailKey = `detail_${npCommunicationId}_${t.trophyId}`;
+
+            if (!translationCache.has(nameKey)) {
+                translationTasks.push({ key: nameKey, text: t.trophyName, type: 'name' });
+            }
+            if (!translationCache.has(detailKey)) {
+                translationTasks.push({ key: detailKey, text: t.trophyDetail, type: 'detail' });
+            }
+        });
+
+        if (translationTasks.length > 0) {
             try {
-                console.log(`[TRANS] Translating ${trophiesToTranslate.length} trophies...`);
-                const textsToTranslate = trophiesToTranslate.map(t => t.trophyDetail);
+                console.log(`[TRANS] Translating ${translationTasks.length} items for ${titleName}...`);
+                const textsToTranslate = translationTasks.map(task => task.text);
                 const translations = await translate(textsToTranslate, { to: 'es' });
 
-                trophiesToTranslate.forEach((t, index) => {
+                translationTasks.forEach((task, index) => {
                     const translatedText = Array.isArray(translations) ? translations[index] : translations;
-                    translationCache.set(t.trophyId, translatedText);
+                    translationCache.set(task.key, translatedText);
                 });
             } catch (error) {
                 console.error("[TRANS ERROR]", error.message);
@@ -187,10 +220,21 @@ router.get('/titles/:npCommunicationId/trophies', async (req, res) => {
 
         const finalTrophies = mergedTrophies.map(t => ({
             ...t,
-            trophyDetailEs: translationCache.get(t.trophyId) || null
+            trophyNameEs: translationCache.get(`name_${npCommunicationId}_${t.trophyId}`) || null,
+            trophyDetailEs: translationCache.get(`detail_${npCommunicationId}_${t.trophyId}`) || null
         }));
 
-        res.json({ trophies: finalTrophies, titleName, platform: titleInfo?.trophyTitlePlatform || '' });
+        const finalTrophyGroups = {};
+        for (const [groupId, groupName] of Object.entries(trophyGroups)) {
+            finalTrophyGroups[groupId] = translationCache.get(`group_${npCommunicationId}_${groupId}`) || groupName;
+        }
+
+        res.json({
+            trophies: finalTrophies,
+            titleName: translationCache.get(titleKey) || titleName,
+            platform: titleInfo?.trophyTitlePlatform || '',
+            trophyGroups: finalTrophyGroups
+        });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
