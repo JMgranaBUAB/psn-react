@@ -209,6 +209,32 @@ const GameTrophies = () => {
                                             );
                                         })}
                                     </div>
+
+                                    {/* Total Points Summary */}
+                                    {(() => {
+                                        const pointValues = { bronze: 15, silver: 30, gold: 90, platinum: 300 };
+                                        const earnedPts = trophies.filter(t => t.earned).reduce((acc, t) => acc + (pointValues[t.trophyType] || 0), 0);
+                                        const totalPts = trophies.reduce((acc, t) => acc + (pointValues[t.trophyType] || 0), 0);
+                                        if (totalPts === 0) return null;
+                                        const pct = Math.round((earnedPts / totalPts) * 100);
+                                        return (
+                                            <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                                                <span className="text-sm text-gray-400">Puntos totales</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-32 bg-white/10 rounded-full h-1.5 overflow-hidden">
+                                                        <div
+                                                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full"
+                                                            style={{ width: `${pct}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-purple-300 font-bold text-sm">
+                                                        {earnedPts}
+                                                        <span className="text-white/40 font-normal"> / {totalPts} pts</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
 
                                 <div className="space-y-4">
