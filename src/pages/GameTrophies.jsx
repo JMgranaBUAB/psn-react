@@ -92,7 +92,7 @@ const GameTrophies = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#0f0f15] text-white font-sans px-6 py-8">
+        <div className="min-h-screen bg-[#0f0f15] text-white font-sans px-6 py-8 flex flex-col items-center">
             <div className="max-w-5xl mx-auto w-full">
                 <Link to="/" className="inline-flex items-center text-gray-400 hover:text-white mb-8 transition-colors">
                     <ArrowLeft size={20} className="mr-2" /> Back to Dashboard
@@ -119,11 +119,11 @@ const GameTrophies = () => {
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex gap-3 mb-8">
+                <div className="flex gap-2 mb-8">
                     <button
                         onClick={() => setFilter('all')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'all'
-                            ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/30'
+                        className={`px-2 py-1 rounded text-xs font-medium transition-all ${filter === 'all'
+                            ? 'bg-purple-500 text-white shadow shadow-purple-500/30'
                             : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
@@ -131,8 +131,8 @@ const GameTrophies = () => {
                     </button>
                     <button
                         onClick={() => setFilter('earned')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'earned'
-                            ? 'bg-green-500 text-white shadow-lg shadow-green-500/30'
+                        className={`px-2 py-1 rounded text-xs font-medium transition-all ${filter === 'earned'
+                            ? 'bg-green-500 text-white shadow shadow-green-500/30'
                             : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
@@ -140,8 +140,8 @@ const GameTrophies = () => {
                     </button>
                     <button
                         onClick={() => setFilter('unearned')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'unearned'
-                            ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
+                        className={`px-2 py-1 rounded text-xs font-medium transition-all ${filter === 'unearned'
+                            ? 'bg-red-500 text-white shadow shadow-red-500/30'
                             : 'bg-white/5 text-gray-400 hover:bg-white/10'
                             }`}
                     >
@@ -261,37 +261,35 @@ const GameTrophies = () => {
 
                                             <div className="flex-1">
                                                 <div className="flex items-start justify-between">
-                                                    <h3 className={`font-bold text-lg ${trophy.earned ? 'text-white' : 'text-gray-400'}`}>
+                                                    <h3 className={`font-bold text-lg leading-tight ${trophy.earned ? 'text-white' : 'text-gray-400'}`}>
                                                         {trophy.trophyName}
                                                         {trophy.trophyNameEs && trophy.trophyNameEs !== trophy.trophyName && (
-                                                            <span className="block text-sm font-normal text-blue-300 italic">
-                                                                {trophy.trophyNameEs}
-                                                            </span>
+                                                            <span className="text-sm font-normal text-blue-300 italic"> · {trophy.trophyNameEs}</span>
                                                         )}
                                                     </h3>
-                                                    <span className={`text-xs px-2 py-1 rounded font-mono uppercase tracking-wider
-                                                        ${trophy.trophyType === 'platinum' ? 'bg-blue-500/20 text-blue-300' :
-                                                            trophy.trophyType === 'gold' ? 'bg-yellow-500/20 text-yellow-300' :
-                                                                trophy.trophyType === 'silver' ? 'bg-gray-400/20 text-gray-300' :
-                                                                    'bg-orange-500/20 text-orange-300'
-                                                        }`}>
-                                                        {trophy.trophyType}
-                                                    </span>
+                                                    <div className="flex flex-col items-end ml-2 shrink-0">
+                                                        <span className={`text-xs px-2 py-1 rounded font-mono uppercase tracking-wider
+                                                            ${trophy.trophyType === 'platinum' ? 'bg-blue-500/20 text-blue-300' :
+                                                                trophy.trophyType === 'gold' ? 'bg-yellow-500/20 text-yellow-300' :
+                                                                    trophy.trophyType === 'silver' ? 'bg-gray-400/20 text-gray-300' :
+                                                                        'bg-orange-500/20 text-orange-300'
+                                                            }`}>
+                                                            {trophy.trophyType}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-500 mt-1">{trophy.trophyEarnedRate}%</span>
+                                                    </div>
                                                 </div>
-                                                <p className="text-gray-400 text-sm mt-1">{trophy.trophyDetail}</p>
+                                                <p className="text-gray-400 text-sm">{trophy.trophyDetail}</p>
                                                 {trophy.trophyDetailEs && (
                                                     <p className="text-blue-300 text-sm mt-1 italic">
                                                         {trophy.trophyDetailEs}
                                                     </p>
                                                 )}
-                                                <div className="mt-2 text-xs text-gray-500 flex items-center justify-between">
-                                                    <span>Rarity: {trophy.trophyEarnedRate}%</span>
-                                                    {trophy.earned && (
-                                                        <span className="text-green-400">
-                                                            Earned on {new Date(trophy.earnedDateTime).toLocaleDateString()}
-                                                        </span>
-                                                    )}
-                                                </div>
+                                                {trophy.earned && (
+                                                    <div className="mt-2 text-xs text-green-400">
+                                                        Earned on {new Date(trophy.earnedDateTime).toLocaleDateString()}
+                                                    </div>
+                                                )}
                                             </div>
                                         </motion.div>
                                     ))}
